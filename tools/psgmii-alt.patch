@@ -1,0 +1,5 @@
+--- a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts
++++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts
+@@
+-	psgmii-ethphy = <&psgmiiphy>;
++	psgmii-ethphy = <&ethphy12>;	/* ALT image: fork's original (lan2 port PHY) */

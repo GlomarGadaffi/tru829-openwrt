@@ -1,0 +1,15 @@
+# Put your custom commands here that should be executed once
+# the system init finished. By default this file does nothing.
+
+. /lib/functions/umlib.sh
+
+um_io.sh init&
+
+if [ "$CUSTFUNC_NAND_DUAL_IMAGE" = "1" ]; then
+	boot_partition=`fw_printenv boot_partition`
+	if [ "$boot_partition" = "" ]; then
+		fw_setenv boot_partition 0
+	fi
+fi
+
+exit 0

@@ -1,0 +1,76 @@
+<%
+local uci = require("luci.model.uci").cursor()
+local umlib = require "luci.tools.umlib"
+
+local bid = luci.sys.exec("um_art r bid | tr -d '\r' | tr -d '\n'")
+local sn = luci.sys.exec("um_art r sn | tr -d '\r' | tr -d '\n'")
+local uboot_version = luci.sys.exec("strings /dev/mtd9 | grep -e 'U-Boot' | grep -e 'Chaos Calmer' | tr -d '\r' | tr -d '\n'")
+local country2g = luci.sys.exec("um_art r country2g | tr -d '\r' | tr -d '\n'")
+local country5g1 = luci.sys.exec("um_art r country5g1 | tr -d '\r' | tr -d '\n'")
+local country5g2 = luci.sys.exec("um_art r country5g2 | tr -d '\r' | tr -d '\n'")
+local ssid2g, ssid5g1, ssid5g2
+uci:foreach("wireless", "wifi-iface",
+	function(s)
+		if s.network ~= "guest" and s.multiple ~= "1" then
+			if s.device == "wifi0" then
+				ssid2g = s.ssid
+			elseif s.device == "wifi2" then
+				ssid5g1 = s.ssid
+			elseif s.device == "wifi1" then
+				ssid5g2 = s.ssid
+			end
+		end
+	end)
+local mac2g = luci.sys.exec("um_art r wlan2g | tr -d '\r' | tr -d '\n'")
+local mac5g1 = luci.sys.exec("um_art r wlan5g1 | tr -d '\r' | tr -d '\n'")
+local mac5g2 = luci.sys.exec("um_art r wlan5g2 | tr -d '\r' | tr -d '\n'")
+local maclan = luci.sys.exec("um_art r lan | tr -d '\r' | tr -d '\n'")
+local macwan = luci.sys.exec("um_art r wan | tr -d '\r' | tr -d '\n'")
+local macwan2 = luci.sys.exec("um_art r wan2 | tr -d '\r' | tr -d '\n'")
+
+local fp = io.open("/var/run/wps_ap_pin", "r")
+local ap_pin = {}
+if fp then
+	ap_pin = fp:read()
+	fp:close()
+end
+
+local boot_partition = luci.sys.exec("fw_printenv boot_partition | sed -nr 's/^boot_partition=//p' | tr -d '\r' | tr -d '\n'")
+local telnet_flag = luci.sys.exec("um_art r telnet | tr -d '\r' | tr -d '\n'")
+
+-%>
+
+<%+header%>
+
+<script type="text/javascript" src="<%=resource%>/cbi.js"></script>
+<script type="text/javascript">//<![CDATA[
+
+//]]></script>
+
+<fieldset class="cbi-section" style="min-width: 800px;">
+	<legend><%:Board Information%></legend>
+	<table width="100%" cellspacing="10">
+		<tr><td width="33%"><%:BoardID%></td><td><%=pcdata(bid or "")%></td></tr>
+		<tr><td width="33%"><%:Serial Number%></td><td><%=pcdata(sn or "")%></td></tr>
+		<tr><td width="33%"><%:U-Boot Version%></td><td><%=pcdata(uboot_version or "")%></td></tr>
+		<tr><td width="33%"><%:Firmware Version%></td><td><%=pcdata(umlib.version_full)%></td></tr>
+		<tr><td width="33%"><%:Project%></td><td><%=pcdata(umlib.project)%></td></tr>
+		<tr><td width="33%"><%:Wireless 2.4GHz Domain%></td><td><%=pcdata(country2g or "")%></td></tr>
+		<tr><td width="33%"><%:Wireless 5GHz1 Domain%></td><td><%=pcdata(country5g1 or "")%></td></tr>
+		<tr><td width="33%"><%:Wireless 5GHz2 Domain%></td><td><%=pcdata(country5g2 or "")%></td></tr>
+		<tr><td width="33%"><%:Wireless 2.4GHz SSID%></td><td><%=pcdata(ssid2g or "")%></td></tr>
+		<tr><td width="33%"><%:Wireless 5GHz1 SSID%></td><td><%=pcdata(ssid5g1 or "")%></td></tr>
+		<tr><td width="33%"><%:Wireless 5GHz2 SSID%></td><td><%=pcdata(ssid5g2 or "")%></td></tr>
+		<tr><td width="33%"><%:Wireless 2.4GHz MAC%></td><td><%=pcdata(mac2g or "")%></td></tr>
+		<tr><td width="33%"><%:Wireless 5GHz1 MAC%></td><td><%=pcdata(mac5g1 or "")%></td></tr>
+		<tr><td width="33%"><%:Wireless 5GHz2 MAC%></td><td><%=pcdata(mac5g2 or "")%></td></tr>
+		<tr><td width="33%"><%:LAN MAC%></td><td><%=pcdata(maclan or "")%></td></tr>
+		<tr><td width="33%"><%:WAN1 MAC%></td><td><%=pcdata(macwan or "")%></td></tr>
+		<tr><td width="33%"><%:WAN2 MAC%></td><td><%=pcdata(macwan2 or "")%></td></tr>
+		<tr><td width="33%"><%:PIN code%></td><td><%=pcdata(ap_pin or "")%></td></tr>
+		<tr><td width="33%"><%:Dual Image at Image%></td><td><%=pcdata(boot_partition or "")%></td></tr>
+		<tr><td width="33%"><%:Telnet flag%></td><td><%=pcdata(telnet_flag or "")%></td></tr>
+	</table>
+</fieldset>
+
+<%+footer%>

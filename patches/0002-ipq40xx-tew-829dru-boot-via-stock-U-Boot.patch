@@ -1,0 +1,80 @@
+From b4cdc7e41952d166d6ba9b3dab88ef993f7202b4 Mon Sep 17 00:00:00 2001
+From: smoke <smoke@local>
+Date: Tue, 6 Oct 2026 05:12:14 +0000
+Subject: [PATCH 2/6] ipq40xx: tew-829dru: boot via stock U-Boot
+
+- FIT config name config@ap.dk07.1-c1 (machid 0x8010006); stock FIT has no config@1
+- sysupgrade sets boot_partition=0 and writes the 48 MiB 'rootfs' partition only
+- fw_env config for APPSBLENV so fw_setenv works
+- IMAGE_SIZE sized for the 48 MiB partition
+---
+ .../boot/uboot-tools/uboot-envtools/files/ipq40xx    |  3 +++
+ .../linux/ipq40xx/base-files/lib/upgrade/platform.sh | 12 ++++++++----
+ target/linux/ipq40xx/image/generic.mk                |  7 +++++--
+ 3 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/package/boot/uboot-tools/uboot-envtools/files/ipq40xx b/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
+index 6f16491..e170339 100644
+--- a/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
++++ b/package/boot/uboot-tools/uboot-envtools/files/ipq40xx
+@@ -28,6 +28,9 @@ plasmacloud,pa1200|\
+ plasmacloud,pa2200)
+ 	ubootenv_add_uci_config "/dev/mtd5" "0x0" "0x10000" "0x10000"
+ 	;;
++trendnet,tew-829dru)
++	ubootenv_add_uci_config "/dev/mtd$(find_mtd_index APPSBLENV)" "0x0" "0x10000" "0x10000"
++	;;
+ aruba,ap-303)
+ 	ubootenv_add_uci_config "/dev/mtd13" "0x0" "0x10000" "0x10000"
+ 	;;
+diff --git a/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh b/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
+index 1bdd3fc..979ca12 100644
+--- a/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
++++ b/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
+@@ -236,10 +236,14 @@ platform_do_upgrade() {
+ 		CI_UBIPART="rootfs"
+ 		nand_do_upgrade "$1"
+ 		;;
+-        trendnet,tew-829dru)
+-                CI_UBIPART="rootfs"
+-                nand_do_upgrade "$1"
+-                ;;
++	trendnet,tew-829dru)
++		# Stock U-Boot boots "rootfs" when boot_partition=0 and
++		# "rootfs_1" when 1. OpenWrt always installs to "rootfs";
++		# "rootfs_1" is left untouched as a stock fallback.
++		fw_setenv boot_partition 0 || exit 1
++		CI_UBIPART="rootfs"
++		nand_do_upgrade "$1"
++		;;
+ 	zyxel,nbg6617)
+ 		zyxel_do_upgrade "$1"
+ 		;;
+diff --git a/target/linux/ipq40xx/image/generic.mk b/target/linux/ipq40xx/image/generic.mk
+index 2dbe3f8..8fc97ee 100644
+--- a/target/linux/ipq40xx/image/generic.mk
++++ b/target/linux/ipq40xx/image/generic.mk
+@@ -1251,7 +1251,9 @@ define Device/trendnet_tew-829dru
+ 	DEVICE_VENDOR := TRENDnet
+ 	DEVICE_MODEL := TEW-829DRU
+ 	DEVICE_DTS := qcom-ipq4019-tew-829dru
+-	DEVICE_DTS_CONFIG := config@1
++	# U-Boot machid 0x8010006 = AP-DK07.1-C1; bootipq selects the FIT
++	# config by board name (the stock FIT has no config@1).
++	DEVICE_DTS_CONFIG := config@ap.dk07.1-c1
+ 	KERNEL_INSTALL := 1
+ 	BLOCKSIZE := 128k
+ 	PAGESIZE := 2048
+@@ -1336,7 +1338,8 @@ define Device/trendnet_tew-829dru
+ 	uboot-envtools \
+ 	nand-utils \
+ 	ubi-utils
+-	IMAGE_SIZE := 112640k
++	# "rootfs" NAND partition is 48 MiB; leave room for UBI overhead
++	IMAGE_SIZE := 44032k
+ endef
+ TARGET_DEVICES += trendnet_tew-829dru
+ 
+-- 
+2.43.0
+

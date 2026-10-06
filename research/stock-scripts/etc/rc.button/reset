@@ -1,0 +1,20 @@
+#!/bin/sh
+
+[ "${ACTION}" = "released" ] || exit 0
+
+. /lib/functions.sh
+
+logger "$BUTTON released for $SEEN seconds"
+
+if [ "$SEEN" -gt 5 ]
+then
+	echo "FACTORY RESET" > /dev/console
+	reset_avail=$(grep -E '"rootfs_data"|"ubi"' /proc/mtd)
+	if [ -n "$reset_avail" ]; then
+		jffs2reset -y && reboot &
+	else
+		firstboot -y && reboot &
+	fi
+fi
+
+return 0

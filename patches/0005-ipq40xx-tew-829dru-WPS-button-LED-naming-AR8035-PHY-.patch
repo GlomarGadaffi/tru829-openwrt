@@ -1,0 +1,186 @@
+From 1672563abef3c11adf4eebcf2b756a3da23bb3b0 Mon Sep 17 00:00:00 2001
+From: smoke <smoke@local>
+Date: Tue, 6 Oct 2026 05:33:34 +0000
+Subject: [PATCH 5/6] ipq40xx: tew-829dru: WPS button, LED naming, AR8035 PHY,
+ stock feature packages
+
+- WPS button on GPIO18 (stock AP-DK04.1 DTB 'wps' key; um_io.sh sets gpio18 input)
+- LEDs renamed to function/color (blue:wlan-2ghz gpio49, blue:wlan-5ghz gpio45,
+  blue:wps gpio50); wlan triggers moved to 01_leds (phy1tpt/phy2tpt); the
+  QCA9984 LED is driven by ath10k-ct (led_pin 17)
+- describe the AR8035 PHY at MDIO 0x06 seen by U-Boot and poked by stock
+- DEVICE_PACKAGES: USB WWAN (qmi/mbim/ncm + modeswitch), mwan3, OpenVPN,
+  PPTP/L2TP/GRE/WireGuard protos, UPnP, DDNS, SQM, WoL, watchcat,
+  wifischedule, ksmbd, igmpproxy, umdns, relayd, full wpad (WPS)
+---
+ .../ipq40xx/base-files/etc/board.d/01_leds    |  6 ++
+ .../boot/dts/qcom/qcom-ipq4019-tew-829dru.dts | 55 ++++++++++++-------
+ target/linux/ipq40xx/image/generic.mk         | 38 ++++++++++++-
+ 3 files changed, 77 insertions(+), 22 deletions(-)
+
+diff --git a/target/linux/ipq40xx/base-files/etc/board.d/01_leds b/target/linux/ipq40xx/base-files/etc/board.d/01_leds
+index 1c9d3e2..e4e47ce 100644
+--- a/target/linux/ipq40xx/base-files/etc/board.d/01_leds
++++ b/target/linux/ipq40xx/base-files/etc/board.d/01_leds
+@@ -23,6 +23,12 @@ asus,rt-ac58u)
+ 	ucidef_set_led_netdev "wan" "WAN" "blue:wan" "wan"
+ 	ucidef_set_led_netdev "lan" "LAN" "blue:lan" "br-lan"
+ 	;;
++trendnet,tew-829dru)
++	# radio order seen on this board: phy0 = QCA9984 (PCIe, drives its
++	# own LED), phy1 = IPQ4019 2.4 GHz, phy2 = IPQ4019 5 GHz
++	ucidef_set_led_wlan "wlan2g" "WLAN 2.4GHz" "blue:wlan-2ghz" "phy1tpt"
++	ucidef_set_led_wlan "wlan5g" "WLAN 5GHz" "blue:wlan-5ghz" "phy2tpt"
++	;;
+ avm,fritzbox-4040)
+ 	ucidef_set_led_wlan "wlan" "WLAN" "green:wlan" "phy0tpt" "phy1tpt"
+ 	ucidef_set_led_netdev "wan" "WAN" "green:wan" "wan"
+diff --git a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts
+index 472d9ff..239ede6 100644
+--- a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts
++++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts
+@@ -25,6 +25,7 @@
+  */
+ 
+ #include "qcom-ipq4019-ap.dk04.1.dtsi"
++#include <dt-bindings/leds/common.h>
+ 
+ / {
+ 
+@@ -64,6 +65,13 @@
+ 			gpios = <&tlmm 34 GPIO_ACTIVE_LOW>;
+ 			linux,code = <KEY_RESTART>;
+ 		};
++
++		/* stock AP-DK04.1 DTB "wps" key; stock um_io.sh sets gpio18 as input */
++		wps {
++			label = "wps";
++			gpios = <&tlmm 18 GPIO_ACTIVE_LOW>;
++			linux,code = <KEY_WPS_BUTTON>;
++		};
+ 	};
+ 	
+ 	regulators {
+@@ -80,37 +88,33 @@
+ 	};
+ 	
+ 	leds {
+-	
+ 		compatible = "gpio-leds";
+ 
+-		led_2g4: led-2g4 {
+-			label = "tew829dru:blue:2g4";
++		/* stock DTB wifi@a000000 wifi-led-gpios = gpio49 active low */
++		led_wlan2g: led-0 {
++			function = LED_FUNCTION_WLAN_2GHZ;
++			color = <LED_COLOR_ID_BLUE>;
+ 			gpios = <&tlmm 49 GPIO_ACTIVE_LOW>;
+-			linux,default-trigger = "phy0tpt";
+-			default-state = "off";
+ 		};
+ 
+-		/* MISSING - claimed by qca8k, dont need it */
+-		/*led_5g1: led-5g1 {
+-			label = "tew829dru:blue:5g1";
+-			gpios = <&tlmm ??? GPIO_ACTIVE_LOW>; //temporary - FILL IN GPIO WHEN FOUND!
+-			default-state = "off";
+-		};*/
+-		
+-		led_5g2: led-5g2 {
+-			label = "tew829dru:blue:5g2";
++		/* stock DTB wifi@a800000 wifi-led-gpios = gpio45 active low
++		 * (IPQ4019 5 GHz radio, "5GHz2" on the stock UI) */
++		led_wlan5g: led-1 {
++			function = LED_FUNCTION_WLAN_5GHZ;
++			color = <LED_COLOR_ID_BLUE>;
+ 			gpios = <&tlmm 45 GPIO_ACTIVE_LOW>;
+-			linux,default-trigger = "phy1tpt";
+-			default-state = "off";
+ 		};
+ 
+-		led_wps: led-wps {
+-			label = "tew829dru:blue:wps";
++		/* The "5GHz1" (QCA9984) LED is driven by the radio itself:
++		 * ath10k-ct led_pin 17, shows up as ath10k-phyN. */
++
++		/* stock um_io.sh: gpio50 = WPS LED */
++		led_wps: led-2 {
++			function = LED_FUNCTION_WPS;
++			color = <LED_COLOR_ID_BLUE>;
+ 			gpios = <&tlmm 50 GPIO_ACTIVE_LOW>;
+-			default-state = "off";
+ 		};
+-		
+-	}; /* end of leds */
++	};
+ 	
+ }; /* end of root block */
+ 
+@@ -261,6 +265,15 @@
+ 		reg = <0xd>;
+ 	};
+ 
++	/* Stand-alone GbE PHY at MDIO 0x06 (U-Boot "mii info": OUI 0x1374,
++	 * model 0x07 rev 2 = AR8035). Stock um_switch-phy pokes it (MMD7
++	 * EEE advertisement off). Its MAC side is not the SoC; believed to
++	 * sit between the QCA8337 and the QCA8075 - to be confirmed on the
++	 * board. Described here so phylib can probe/report it. */
++	ethphy6: ethernet-phy@6 {
++		reg = <6>;
++	};
++
+ 	/* ============================================================
+ 	 * BOTTOM SWITCH: QCA8337 (external, RGMII, at MDIO addr 0x10)
+ 	 * compatible = "qca,qca8337" — upstream qca8k.c match string.
+diff --git a/target/linux/ipq40xx/image/generic.mk b/target/linux/ipq40xx/image/generic.mk
+index 8fc97ee..1b458f5 100644
+--- a/target/linux/ipq40xx/image/generic.mk
++++ b/target/linux/ipq40xx/image/generic.mk
+@@ -1337,7 +1337,43 @@ define Device/trendnet_tew-829dru
+ 	ppp-mod-pppoe \
+ 	uboot-envtools \
+ 	nand-utils \
+-	ubi-utils
++	ubi-utils \
++	kmod-usb-ledtrig-usbport \
++	usb-modeswitch \
++	kmod-usb-net-qmi-wwan \
++	kmod-usb-net-cdc-mbim \
++	kmod-usb-net-cdc-ncm \
++	kmod-usb-net-cdc-ether \
++	kmod-usb-net-rndis \
++	kmod-usb-serial-option \
++	uqmi \
++	umbim \
++	luci-proto-qmi \
++	luci-proto-mbim \
++	luci-proto-ncm \
++	mwan3 \
++	luci-app-mwan3 \
++	openvpn-mbedtls \
++	luci-app-openvpn \
++	ppp-mod-pptp \
++	xl2tpd \
++	kmod-gre \
++	luci-proto-gre \
++	luci-proto-wireguard \
++	luci-app-upnp \
++	luci-app-ddns \
++	luci-app-sqm \
++	luci-app-wol \
++	luci-app-watchcat \
++	luci-app-wifischedule \
++	luci-app-ksmbd \
++	igmpproxy \
++	umdns \
++	relayd \
++	luci-proto-relay \
++	hostapd-utils \
++	wpad-mbedtls \
++	-wpad-basic-mbedtls
+ 	# "rootfs" NAND partition is 48 MiB; leave room for UBI overhead
+ 	IMAGE_SIZE := 44032k
+ endef
+-- 
+2.43.0
+

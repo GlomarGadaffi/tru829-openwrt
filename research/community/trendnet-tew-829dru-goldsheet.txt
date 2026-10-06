@@ -1,0 +1,709 @@
+
+                       ######################
+					   ##    GOLD SHEET    ##
+					   ######################
+
+
+						####################
+						## ToH Spec Sheet ##
+						####################
+
+	AC3000 Tri-Band Wireless Gigabit Dual-WAN VPN SMB Router
+
+NOTICE: This is a TRENDnet router, which uses OpenWRT 15.05 as a base for it's firmware!
+
+Brand:								TRENDnet
+Model:								TEW-829DRU
+Version:							v1.0R
+Availability:						Discontinued 2021 / EOL 2026-05-28
+Gluon support:						unknown
+Target:								ipq40xx
+Subtarget:							generic
+Package architecture:				arm_cortex-a7_neon-vfpv4
+Bootloader:							U-Boot
+CPU:								Qualcomm Atheros IPQ4019 SoC
+CPU Cores:							4
+CPU MHz:							717
+Flash MB:							8, 128 (Macronix MX25L6433F SPI NOR / Micron MT29F1G08ABADA NAND)
+NANDRAM MB:							256 (Winbond W632GU6MB-12)
+Ethernet 100M ports:				-
+Ethernet 1Gbit ports:				10
+Ethernet 2.5Gbit ports:				-
+Ethernet 5Gbit ports:				-
+Ethernet 10Gbit ports:				-
+SFP ports:							-
+SFP+ ports:							-
+Switch:								Qualcomm Atheros QCA8075, Qualcomm Atheros QCA8337
+VLAN:								Yes
+Modem:								-
+Comments network ports:				2 WAN + 8 LAN Port Switch
+WLAN Hardware:						Qualcomm Atheros QCA4019, Qualcomm Atheros QCA9984
+WLAN 2.4GHz:						b/g/n
+WLAN 5.0GHz:						a/n/ac
+WLAN driver:						ath10k
+Detachable Antennas:				6
+Bluetooth:							-
+miniPCI ports:						-
+USB ports:							1x 3.0
+SATA ports:							-
+Video ports:						-
+Audio ports:						-
+Phone ports:						-
+Serial:								Yes
+Serial connection parameters:		115200 / 8N1
+Serial connection voltage:			?
+JTAG:								?
+LED count:							5
+Button count:						-
+GPIOs:								-
+Power Supply:						12 VDC, 3.0A via barrel
+Outdoor:							No
+OpenVPN performance:				?
+Wireguard performance:				?
+
+
+					###############################
+					## Additional Specifications ##
+					###############################
+
+FCC ID:								XU8TEW829DRU
+Board Manufacturer:					U-MEDIA
+
+DevKit:								Qualcomm IPQ40xx/AP-DK04.1-C1		(corrected)
+
+DTS Closest Sibling:				qcom-ipq4019-ap.dk04.1-c1.dts		(corrected)
+
+DTSI File:							qcom-ipq4019-ap.dk04.1.dtsi
+Inherits:							qcom-ipq4019.dtsi
+
+QCA9984 firmware identifier:		bus=pci,bmi-chip-id=0,bmi-board-id=1
+
+QCA4019 firmware identifier:		bus=ahb,bmi-chip-id=0,bmi-board-id=28,variant=TEW-829DRU-2G
+									bus=ahb,bmi-chip-id=0,bmi-board-id=30,variant=TEW-829DRU-5G
+
+
+							###########
+							## NOTES ##
+							###########
+
+- This is a quad core, 717 Mhz, 256MB RAM IPQ4019 device
+- This device is based off the Qualcomm ap.dk04.1-c1 SDK development board
+- This is a Dual Switch / Dual GMAC Architecture (QCA8337/QCA8075)
+
+- This device has a redundant setup with two flash chips:
+	- Macronix MX25L6433F SPI NOR (8-pin) - for the single bootloader setup
+	- Micron MT29F1G08ABADA NAND (TSOP-48 / 48-pin) - for the redundant/dual root filesystem
+
+- This device is a tri-band wireless device (QC4019, QCA9984)
+
+- This device firmware is based off OpenWRT 15.05 Chaos Calmer (licensed under GPLv2)
+
+- This device has a single bootloader setup
+- This device has a redundant/dual kernel/rootfs setup
+- This device has a rootfs_data overlay
+
+- Ideally we would preserve the redundant rootfs functionality
+
+
+							################
+							## KNOWN UART ##
+							################
+							
+UART HEADER:	is a 4 pin header in the back of the router behind the metal heatsink
+							
+PIN 1:			Is marked by a white silkscreened hollow triangle
+Pin 1:			If facing router, with ports & lights in front of you, pin 1 is on the left.
+							
+Pin							FUNCTION
+							
+1				VCC (3.3v constant)
+2				GND (continuity to DC negative)
+3				TX (3.3v high, fluctuating during transmission while device is powered)
+4				RX (3.3v high, fluctuating during transmission, most likely dead unless UART device is connected)
+
+Note: this has been verified with a multimeter, it is the most common used pinout layout
+
+Note: The SPI NOR chip (SMD 8-pin) is right beside UART header.
+							
+							
+							#################
+							## KNOWN GPIOS ##
+							#################
+							
+Note: GPIO's on this device are offset by +512 - logical GPIO1 is actually GPIO513
+							
+Note: Working on obtaining LED & reset button GPIO's
+Note: TRENDnet does not provide GPIO mappings or compileable CCS.
+Note: 5g1 led might be set by QCA8075
+							
+LOGICAL GPIO		ACTUAL GPIO			FUNCTION
+
+6					518					DO NOT PROBE, RESETS qca8k (qca8k / wan reset / switches)
+7					519					DO NOT PROBE, CRASHES SYSTEM, RESERVED (unknown)
+16					528					DO NOT PROBE, CRASHES SYSTEM, RESERVED (UART / unknown)
+29					541					DO NOT PROBE, CRASHES, RESERVED (unknown)
+41					553					DO NOT PROBE, RESETS qca8k (qca8k / wan reset / switches)
+42					554					DO NOT PROBE, RESETS qca8k, RESERVED (qca8k / wan reset / switches)
+
+48					560					usb-power-enable -> drive HIGH to enable USB power (finally found it via probing!)
+52					564					mdio (determined following hardware lineage)
+53					565					SHARED: mdc & nand (determined following hardware lineage)
+
+50					562					WPS LED (drive low on, drive high off)
+49					560					2.4g LED (drive low on, drive high off)
+--					---					5g1 LED (drive low on, drive high off) -- SPECIAL! Driver claims this one! No GPIO for it.
+45					557					5g2 LED (drive low on, drive high off)
+
+
+
+							#############
+							## VERSION ##
+							#############
+
+(IPQ40xx) # version
+
+U-Boot 2012.07 [Chaos Calmer 15.05.1,r35193] (Jan 23 2018 - 20:04:52)
+arm-openwrt-linux-uclibcgnueabi-gcc (OpenWrt/Linaro GCC 4.8-2014.04 r35193) 4.8.3
+GNU ld (GNU Binutils) 2.24.0
+(IPQ40xx) #
+(IPQ40xx) # showvar
+HUSH_VERSION=0.01
+(IPQ40xx) #
+
+
+							##############
+							## SF PROBE ##
+							##############
+							
+(IPQ40xx) # sf probe
+SF: Detected MX25L6405D with page size 4 KiB, total 8 MiB
+(IPQ40xx) #
+
+
+							##############
+							## PRINTENV ##
+							##############
+
+(IPQ40xx) # printenv
+baudrate=115200
+boot_partition=1
+bootcmd=bootipq
+bootdelay=7
+ethact=eth0
+flash_type=0
+ipaddr=192.168.10.11
+machid=8010006
+nand_erasesize=1000
+nand_oobsize=0
+nand_writesize=100
+serverip=192.168.10.100
+stderr=serial
+stdin=serial
+stdout=serial
+wait_boot=60
+
+Environment size: 287/65532 bytes
+(IPQ40xx) #
+
+
+							#############
+							## MMCINFO ##
+							#############
+
+(IPQ40xx) # mmcinfo
+Card did not respond to voltage select!
+Device: qca_mmc
+Manufacturer ID: 0
+OEM: 0
+Name: Tran Speed: 0
+Rd Block Len: 0
+MMC version 0.0
+High Capacity: No
+Capacity: 0 Bytes
+Bus Width: 1-bit
+(IPQ40xx) #
+
+
+							##############
+							## MII INFO ##
+							##############
+
+(IPQ40xx) # mii info
+PHY 0x00: OUI = 0x1374, Model = 0x03, Rev = 0x06,  10baseT, HDX
+PHY 0x01: OUI = 0x1374, Model = 0x03, Rev = 0x06,  10baseT, HDX
+PHY 0x02: OUI = 0x1374, Model = 0x03, Rev = 0x06,  10baseT, HDX
+PHY 0x03: OUI = 0x1374, Model = 0x03, Rev = 0x06,  10baseT, HDX
+PHY 0x04: OUI = 0x1374, Model = 0x03, Rev = 0x06,  10baseT, HDX
+PHY 0x06: OUI = 0x1374, Model = 0x07, Rev = 0x02,  10baseT, HDX
+PHY 0x08: OUI = 0x1374, Model = 0x0B, Rev = 0x01,  10baseT, HDX
+PHY 0x09: OUI = 0x1374, Model = 0x0B, Rev = 0x01,  10baseT, HDX
+PHY 0x0A: OUI = 0x1374, Model = 0x0B, Rev = 0x01,  10baseT, HDX
+PHY 0x0B: OUI = 0x1374, Model = 0x0B, Rev = 0x01, 100baseT, FDX
+PHY 0x0C: OUI = 0x1374, Model = 0x0B, Rev = 0x01,  10baseT, HDX
+PHY 0x0D: OUI = 0x1A082, Model = 0x00, Rev = 0x05,  10baseT, HDX
+PHY 0x10: OUI = 0x0000, Model = 0x00, Rev = 0x00,  10baseT, HDX
+PHY 0x11: OUI = 0x0000, Model = 0x00, Rev = 0x00,  10baseT, HDX
+PHY 0x12: OUI = 0x4A000, Model = 0x00, Rev = 0x00,  10baseT, HDX
+PHY 0x13: OUI = 0x0000, Model = 0x00, Rev = 0x00,  10baseT, HDX
+PHY 0x14: OUI = 0x0000, Model = 0x00, Rev = 0x00,  10baseT, HDX
+PHY 0x15: OUI = 0x0000, Model = 0x00, Rev = 0x00,  10baseT, HDX
+PHY 0x16: OUI = 0x0000, Model = 0x00, Rev = 0x00,  10baseT, HDX
+PHY 0x17: OUI = 0x0000, Model = 0x00, Rev = 0x00,  10baseT, HDX
+PHY 0x18: OUI = 0x0000, Model = 0x00, Rev = 0x00,  10baseT, HDX
+(IPQ40xx) #
+
+
+							#############
+							##   PCI   ##
+							#############
+
+(IPQ40xx) # pci
+Scanning PCI devices on bus 0
+BusDevFun  VendorId   DeviceId   Device Class       Sub-Class
+_____________________________________________________________
+00.00.00   0x17cb     0x1001     Does not fit any class  0x00
+00.01.00   0x17cb     0x1001     Does not fit any class  0x00
+00.02.00   0x17cb     0x1001     Does not fit any class  0x00
+00.03.00   0x17cb     0x1001     Does not fit any class  0x00
+00.04.00   0x17cb     0x1001     Does not fit any class  0x00
+00.05.00   0x17cb     0x1001     Does not fit any class  0x00
+00.06.00   0x17cb     0x1001     Does not fit any class  0x00
+00.07.00   0x17cb     0x1001     Does not fit any class  0x00
+00.08.00   0x17cb     0x1001     Does not fit any class  0x00
+00.09.00   0x17cb     0x1001     Does not fit any class  0x00
+00.0a.00   0x17cb     0x1001     Does not fit any class  0x00
+00.0b.00   0x17cb     0x1001     Does not fit any class  0x00
+00.0c.00   0x17cb     0x1001     Does not fit any class  0x00
+00.0d.00   0x17cb     0x1001     Does not fit any class  0x00
+00.0e.00   0x17cb     0x1001     Does not fit any class  0x00
+00.0f.00   0x17cb     0x1001     Does not fit any class  0x00
+00.10.00   0x17cb     0x1001     Does not fit any class  0x00
+00.11.00   0x17cb     0x1001     Does not fit any class  0x00
+00.12.00   0x17cb     0x1001     Does not fit any class  0x00
+00.13.00   0x17cb     0x1001     Does not fit any class  0x00
+00.14.00   0x17cb     0x1001     Does not fit any class  0x00
+00.15.00   0x17cb     0x1001     Does not fit any class  0x00
+00.16.00   0x17cb     0x1001     Does not fit any class  0x00
+00.17.00   0x17cb     0x1001     Does not fit any class  0x00
+00.18.00   0x17cb     0x1001     Does not fit any class  0x00
+00.19.00   0x17cb     0x1001     Does not fit any class  0x00
+00.1a.00   0x17cb     0x1001     Does not fit any class  0x00
+00.1b.00   0x17cb     0x1001     Does not fit any class  0x00
+00.1c.00   0x17cb     0x1001     Does not fit any class  0x00
+00.1d.00   0x17cb     0x1001     Does not fit any class  0x00
+00.1e.00   0x17cb     0x1001     Does not fit any class  0x00
+00.1f.00   0x17cb     0x1001     Does not fit any class  0x00
+(IPQ40xx) #
+
+
+							##############
+							## SMEMINFO ##
+							##############
+
+(IPQ40xx) # smeminfo
+flash_type:             0x6
+flash_index:            0x0
+flash_chip_select:      0x0
+flash_block_size:       0x10000
+flash_density:          0x1000000
+partition table offset  0x0
+No.: Name             Attributes            Start             Size
+  0: 0:SBL1           0x0000ffff              0x0          0x40000
+  1: 0:MIBIB          0x001040ff          0x40000          0x20000
+  2: 0:QSEE           0x0000ffff          0x60000          0x60000
+  3: 0:CDT            0x0000ffff          0xc0000          0x10000
+  4: 0:DDRPARAMS      0x0000ffff          0xd0000          0x10000
+  5: 0:APPSBLENV      0x0000ffff          0xe0000          0x10000
+  6: 0:APPSBL         0x0000ffff          0xf0000          0x80000
+  7: 0:ART            0x0000ffff         0x170000          0x10000
+  8: rootfs           0x0100ffff              0x0        0x3000000
+  9: rootfs_1         0x0100ffff        0x3000000        0x3000000
+ 10: overlay          0x0100ffff        0x6000000        0x2000000
+(IPQ40xx) #
+
+
+				#####################################
+				## MACRONIX MX25L6433F SPI NOR 8MB ##
+				## BOOTLOADER PARTITION TABLE DUMP ##
+				#####################################
+
+Note: SPI NOR chip (SMD 8-pin) is right beside the UART header.
+
+root@AIKS0:~/work/flash-dump# binwalk tew-829dru-flashdump.bin
+
+DECIMAL       HEXADECIMAL     DESCRIPTION
+--------------------------------------------------------------------------------
+0             0x0             ELF, 32-bit LSB executable, ARM, version 1 (SYSV)
+19432         0x4BE8          Ubiquiti partition header, header size: 56 bytes, name: "PARTNUM_SHFT", base address: 0x08A16B46, data size: -1912995176 bytes
+81400         0x13DF8         Unix path: /dev/icbcfg/boot
+263424        0x40500         ATAGs msm parition table (msmptbl), version: 4, number of paritions: 11
+393216        0x60000         ELF, 32-bit LSB executable, ARM, version 1 (SYSV)
+618103        0x96E77         XML document, version: "1.0"
+983040        0xF0000         ELF, 32-bit LSB shared object, ARM, version 1 (SYSV)
+1333829       0x145A45        Certificate in DER format (x509 v3), header length: 4, sequence length: 1284
+1333945       0x145AB9        Certificate in DER format (x509 v3), header length: 4, sequence length: 1288
+1384888       0x1521B8        CRC32 polynomial table, little endian
+1386584       0x152858        CRC32 polynomial table, little endian
+1638510       0x19006E        Zlib compressed data, default compression
+1638630       0x1900E6        Zlib compressed data, default compression
+1704046       0x1A006E        Zlib compressed data, default compression
+1704183       0x1A00F7        Zlib compressed data, default compression
+1769582       0x1B006E        Zlib compressed data, default compression
+1769698       0x1B00E2        Zlib compressed data, default compression
+1835118       0x1C006E        Zlib compressed data, default compression
+1835255       0x1C00F7        Zlib compressed data, default compression
+1900654       0x1D006E        Zlib compressed data, default compression
+1900774       0x1D00E6        Zlib compressed data, default compression
+1966190       0x1E006E        Zlib compressed data, default compression
+1966305       0x1E00E1        Zlib compressed data, default compression
+2031616       0x1F0000        uImage header, header size: 64 bytes, header CRC: 0xC7B3D000, created: 2102-10-12 17:35:04, image size: 1929404288 bytes, Data Address: 0x37D7100, Entry Point: 0x28580400, data CRC: 0x6E61, compression type: gzip, image name: "X"
+2031726       0x1F006E        Zlib compressed data, default compression
+2031843       0x1F00E3        Zlib compressed data, default compression
+2097152       0x200000        uImage header, header size: 64 bytes, header CRC: 0xC7B3D000, created: 2104-11-27 10:56:08, image size: 1929404288 bytes, Data Address: 0x37D7100, Entry Point: 0x28580400, data CRC: 0x6E61, compression type: gzip, image name: "X"
+2097262       0x20006E        Zlib compressed data, default compression
+4831124       0x49B794        Flattened device tree, size: 37360 bytes, version: 17
+4868764       0x4A4A9C        Flattened device tree, size: 34223 bytes, version: 17
+4903268       0x4AD164        Flattened device tree, size: 41493 bytes, version: 17
+4945044       0x4B7494        Flattened device tree, size: 37867 bytes, version: 17
+4983192       0x4C0998        Flattened device tree, size: 34223 bytes, version: 17
+5017696       0x4C9060        Flattened device tree, size: 37565 bytes, version: 17
+5055544       0x4D2438        Flattened device tree, size: 37867 bytes, version: 17
+5093692       0x4DB93C        Flattened device tree, size: 34077 bytes, version: 17
+5128052       0x4E3F74        Flattened device tree, size: 42447 bytes, version: 17
+5170780       0x4EE65C        Flattened device tree, size: 37964 bytes, version: 17
+5209024       0x4F7BC0        Flattened device tree, size: 34376 bytes, version: 17
+5767278       0x58006E        xz compressed data
+5877218       0x59ADE2        xz compressed data
+5941066       0x5AA74A        xz compressed data
+6161706       0x5E052A        xz compressed data
+6249082       0x5F5A7A        xz compressed data
+6325606       0x608566        xz compressed data
+6354906       0x60F7DA        xz compressed data
+6420606       0x61F87E        xz compressed data
+6634942       0x653DBE        xz compressed data
+6699434       0x6639AA        xz compressed data
+6779546       0x67729A        xz compressed data
+6978870       0x6A7D36        xz compressed data
+7199646       0x6DDB9E        xz compressed data
+7295030       0x6F5036        xz compressed data
+7448570       0x71A7FA        xz compressed data
+7663794       0x74F0B2        xz compressed data
+7738862       0x7615EE        xz compressed data
+7949090       0x794B22        xz compressed data
+8151782       0x7C62E6        xz compressed data
+8244442       0x7DCCDA        xz compressed data
+8272390       0x7E3A06        xz compressed data
+
+root@AIKS0:~/work/flash-dump#
+
+
+				######################################
+				## Micron MT29F1G08ABADA NAND 128MB ##
+				##       PARTITION TABLE DUMP       ##
+				######################################
+
+Note: NAND - TSOP-48 (48 pin) is on the underside of the board. It is NOT the diagonal one, its the other one.
+
+group_pairs Layout blocks found at PEBs: [[0, 1], [384, 385], [801, 921]]
+description Create Volume: b'kernel', ID: 0, Block Cnt: 29
+description Create Volume: b'ubi_rootfs', ID: 1, Block Cnt: 162
+description Created Image: 1119963279, Volume Cnt: 2
+description Create Volume: b'kernel', ID: 0, Block Cnt: 30
+description Create Volume: b'ubi_rootfs', ID: 1, Block Cnt: 162
+description Created Image: 490764789, Volume Cnt: 2
+description Create Volume: b'rootfs_data', ID: 0, Block Cnt: 39
+description Created Image: 864603106, Volume Cnt: 1
+
+# FROM GPL SOURCE:
+
+root@AIKS0:~/work/GPL_SOURCE/GPL_TEW-829DRU_v1/IPQ4019.ILQ.1.2# cat common/build/ipq/nand-flash.conf
+[mibib]
+partition = 0:MIBIB
+filename = nand-system-partition-ipq40xx.bin
+
+[sbl1]
+partition = 0:SBL1
+filename = sbl1_nand.mbn
+
+[bootconfig]
+partition = 0:BOOTCONFIG
+filename = nand_bootconfig.bin
+
+[bootconfig1]
+partition = 0:BOOTCONFIG1
+filename = nand_bootconfig1.bin
+
+[ddr-AP-DK01.1-C1]
+partition = 0:CDT
+filename = cdt-AP.DK01.1-C1.bin
+if_machid = 0x8010000
+
+[ddr-AP-DK01.1-C2]
+partition = 0:CDT
+filename = cdt-AP.DK01.1-C2.bin
+if_machid = 0x8010100
+
+[ddr-AP-DK04.1-C1]
+partition = 0:CDT
+filename = cdt-AP.DK04.1-C1.bin
+if_machid = 0x8010001
+
+[ddr-AP-DK04.1-C4]
+partition = 0:CDT
+filename = cdt-AP.DK04.1-C4.bin
+if_machid = 0x8010301
+
+[ddr-AP-DK04.1-C2]
+partition = 0:CDT
+filename = cdt-AP.DK04.1-C2.bin
+if_machid = 0x8010101
+
+[ddr-AP-DK04.1-C3]
+partition = 0:CDT
+filename = cdt-AP.DK04.1-C3.bin
+if_machid = 0x8010201
+
+[ddr-AP-DK06.1-C1]
+partition = 0:CDT
+filename = cdt-AP.DK06.1-C1.bin
+if_machid = 0x8010005
+
+[ddr-AP-DK07.1-C1]
+partition = 0:CDT
+filename = cdt-AP.DK07.1-C1.bin
+if_machid = 0x8010006
+
+[ddr-DB-DK01.1-C1]
+partition = 0:CDT
+filename = cdt-DB.DK01.1-C1.bin
+if_machid = 0x1010002
+
+[ddr-DB.DK02.1-C1]
+partition = 0:CDT
+filename = cdt-DB.DK02.1-C1.bin
+if_machid = 0x1010003
+
+[tz]
+partition = 0:QSEE
+filename = tz.mbn
+
+[u-boot]
+partition = 0:APPSBL
+filename = openwrt-ipq40xx-u-boot-stripped.elf
+
+[ubi]
+partition = rootfs
+filename = openwrt-ipq806x-ipq40xx-ubi-root.img
+root@AIKS0:~/work/GPL_SOURCE/GPL_TEW-829DRU_v1/IPQ4019.ILQ.1.2#
+
+
+					  ###################
+					  ## DMESG on BOOT ##
+					  ###################
+
+Format: Log Type - Time(microsec) - Message - Optional Info
+Log Type: B - Since Boot(Power On Reset),  D - Delta,  S - Statistic
+S - QC_IMAGE_VERSION_STRING=BOOT.BF.3.1.1-00103
+S - IMAGE_VARIANT_STRING=DAABANAZA
+S - OEM_IMAGE_VERSION_STRING=CRM
+S - Boot Config, 0x00000021
+S - Core 0 Frequency, 0 MHz
+B -       261 - PBL, Start
+B -      1338 - bootable_media_detect_entry, Start
+B -      1678 - bootable_media_detect_success, Start
+B -      1692 - elf_loader_entry, Start
+B -      5068 - auth_hash_seg_entry, Start
+B -      7209 - auth_hash_seg_exit, Start
+B -    578260 - elf_segs_hash_verify_entry, Start
+B -    694350 - PBL, End
+B -    694373 - SBL1, Start
+B -    781491 - pm_device_init, Start
+D -         6 - pm_device_init, Delta
+B -    783018 - boot_flash_init, Start
+D -     54307 - boot_flash_init, Delta
+B -    841348 - boot_config_data_table_init, Start
+D -      3840 - boot_config_data_table_init, Delta - (419 Bytes)
+B -    848552 - clock_init, Start
+D -      7548 - clock_init, Delta
+B -    860597 - CDT version:2,Platform ID:8,Major ID:1,Minor ID:0,Subtype:6
+B -    864084 - sbl1_ddr_set_params, Start
+B -    869071 - cpr_init, Start
+D -         2 - cpr_init, Delta
+B -    873561 - Pre_DDR_clock_init, Start
+D -         5 - Pre_DDR_clock_init, Delta
+D -     13145 - sbl1_ddr_set_params, Delta
+B -    886842 - pm_driver_init, Start
+D -         2 - pm_driver_init, Delta
+B -    956928 - sbl1_wait_for_ddr_training, Start
+D -        29 - sbl1_wait_for_ddr_training, Delta
+B -    972436 - Image Load, Start
+D -    138251 - QSEE Image Loaded, Delta - (269176 Bytes)
+B -   1111185 - Image Load, Start
+D -      1438 - SEC Image Loaded, Delta - (2048 Bytes)
+B -   1121464 - Image Load, Start
+D -    208452 - APPSBL Image Loaded, Delta - (426543 Bytes)
+B -   1330338 - QSEE Execution, Start
+D -        60 - QSEE Execution, Delta
+B -   1336505 - SBL1, End
+D -    644213 - SBL1, Delta
+S - Flash Throughput, 2006 KB/s  (698186 Bytes,  348006 us)
+S - DDR Frequency, 672 MHz
+
+
+U-Boot 2012.07 [Chaos Calmer 15.05.1,r35193] (Jan 23 2018 - 20:04:52)
+
+smem ram ptable found: ver: 1 len: 3
+DRAM:  256 MiB
+machid : 0x8010006
+NAND:  ID = 9580f12c
+Vendor = 2c
+Device = f1
+ONFI device found
+SF: Detected MX25L6405D with page size 4 KiB, total 8 MiB
+ipq_spi: page_size: 0x100, sector_size: 0x1000, size: 0x800000
+136 MiB
+MMC:   qca_mmc: 0
+PCI0 Link Intialized
+In:    serial
+Out:   serial
+Err:   serial
+machid: 8010006
+flash_type: 0
+Net:   MAC0 addr:3c:8c:f8:f3:96:b2
+PHY ID1: 0x4d
+PHY ID2: 0xd0b1
+Phy ID: 0x8 - MM7 offset 0x8074: 0xAA4B, MM7 offset 0x8076: 0x9271
+Phy ID: 0x9 - MM7 offset 0x8074: 0xAA4B, MM7 offset 0x8076: 0x9271
+Phy ID: 0xA - MM7 offset 0x8074: 0xAA4B, MM7 offset 0x8076: 0x9271
+Phy ID: 0xB - MM7 offset 0x8074: 0xAA4B, MM7 offset 0x8076: 0x9271
+Phy ID: 0xC - MM7 offset 0x8074: 0xAA4B, MM7 offset 0x8076: 0x9271
+ipq40xx_ess_sw_init done
+eth0
+Hit any key to stop autoboot:  0
+Creating 1 MTD partitions on "nand0":
+0x000003000000-0x000006000000 : "mtd=0"
+UBI: attaching mtd2 to ubi0
+UBI: physical eraseblock size:   131072 bytes (128 KiB)
+UBI: logical eraseblock size:    126976 bytes
+UBI: smallest flash I/O unit:    2048
+UBI: VID header offset:          2048 (aligned 2048)
+UBI: data offset:                4096
+UBI: attached mtd2 to ubi0
+UBI: MTD device name:            "mtd=0"
+UBI: MTD device size:            48 MiB
+UBI: number of good PEBs:        384
+UBI: number of bad PEBs:         0
+UBI: max. allowed volumes:       128
+UBI: wear-leveling threshold:    4096
+UBI: number of internal volumes: 1
+UBI: number of user volumes:     2
+UBI: available PEBs:             185
+UBI: total number of reserved PEBs: 199
+UBI: number of PEBs reserved for bad PEB handling: 3
+UBI: max/mean erase counter: 4/3
+Read 0 bytes from volume kernel to 84000000
+No size specified -> Using max size (3809280)
+## Booting kernel from FIT Image at 84000000 ...
+   Using 'config@ap.dk07.1-c1' configuration
+   Trying 'kernel@1' kernel subimage
+	 Description:  ARM OpenWrt Linux-3.14.43
+	 Type:         Kernel Image
+	 Compression:  gzip compressed
+	 Data Start:   0x840000e4
+	 Data Size:    3361261 Bytes = 3.2 MiB
+	 Architecture: ARM
+	 OS:           Linux
+	 Load Address: 0x80208000
+	 Entry Point:  0x80208000
+	 Hash algo:    crc32
+	 Hash value:   455baf05
+	 Hash algo:    sha1
+	 Hash value:   815ee16957306915e27edd00aa3f66ef979b805b
+   Verifying Hash Integrity ... crc32+ sha1+ OK
+## Flattened Device Tree from FIT Image at 84000000
+   Using 'config@ap.dk07.1-c1' configuration
+   Trying 'fdt@ap.dk07.1-c1' FDT blob subimage
+	 Description:  ARM OpenWrt qcom-ipq40xx-ap.dkxx device tree blob
+	 Type:         Flat Device Tree
+	 Compression:  uncompressed
+	 Data Start:   0x8436c2f8
+	 Data Size:    37922 Bytes = 37 KiB
+	 Architecture: ARM
+	 Hash algo:    crc32
+	 Hash value:   b448c7b5
+	 Hash algo:    sha1
+	 Hash value:   c2130265a9512115b7a12df0207d3b0f268068f2
+   Verifying Hash Integrity ... crc32+ sha1+ OK
+   Booting using the fdt blob at 0x8436c2f8
+   Uncompressing Kernel Image ... OK
+   Loading Device Tree to 86ff3000, end 86fff421 ... OK
+eth0 MAC Address from ART: 3c:8c:f8:f3:96:b2
+eth1 MAC Address from ART: 3c:8c:f8:f3:96:b4
+eth2 MAC Address from ART: 3c:8c:f8:f3:96:b3
+Using machid 0x8010006 from environment
+
+Starting kernel ...
+
+
+					  #####################
+					  ## CALDATA PACKING ##
+					  #####################
+
+These are the board-2.json files I used (named differently)
+
+This is only required for developers porting devices, the average user will not have to do any of this process.
+This is mainly documentation for myself.
+
+What is important here is the overall structure, and the `names` field. Copy it exactly.
+The filenames are irrelevant. Yours may be different. Just rename or replace them.
+
+qca4019-artcaldata.json
+###
+[
+  {
+	"names": ["bus=ahb,bmi-chip-id=0,bmi-board-id=28,variant=TEW-829DRU-2G"],
+	"data": "cal-ahb-0-fresh.bin"
+  },
+  {
+	"names": ["bus=ahb,bmi-chip-id=0,bmi-board-id=30,variant=TEW-829DRU-5G"],
+	"data": "cal-ahb-1-fresh.bin"
+  }
+]
+###
+
+qca9984-artcaldata.json
+###
+[
+	{
+		"names": [
+			"bus=pci,bmi-chip-id=0,bmi-board-id=1"
+		],
+		"data": "cal-pci-fresh.bin"
+	}
+]
+###
+
+The commands to run to build the bin file:
+###
+# CREATE BOARD-2.BIN (QCA9984)
+qca-swiss-army-knife/tools/scripts/ath10k/ath10k-bdencoder -c qca9984-artcaldata.json -o qca9984-artcaldata.bin
+qca-swiss-army-knife/tools/scripts/ath10k/ath10k-bdencoder -c qca9984-boardData.json -o qca9984-boardData.bin
+
+# EXTRACT BOARD-2.BIN - INSIDE tmp/ (QCA9984)
+qca-swiss-army-knife/tools/scripts/ath10k/ath10k-bdencoder -e ../../qca9984-artcaldata.bin
+qca-swiss-army-knife/tools/scripts/ath10k/ath10k-bdencoder -e ../../qca9984-boardData.bin
+
+# CREATE BOARD-2.BINS (QCA4019)
+qca-swiss-army-knife/tools/scripts/ath10k/ath10k-bdencoder -c qca4019-artcaldata.json -o qca4019-artcaldata.bin
+tools/qca-swiss-army-knife/tools/scripts/ath10k/ath10k-bdencoder -c qca4019-boardData.json -o qca4019-boardData.bin
+
+# EXTRACT BOARD-2.BIN - INSIDE tmp/ (QCA4019)
+qca-swiss-army-knife/tools/scripts/ath10k/ath10k-bdencoder -e ../qca4019-artcaldata.bin
+qca-swiss-army-knife/tools/scripts/ath10k/ath10k-bdencoder -e ../qca4019-boardData.bin
+###
+
+You can make a tmp/ directory, enter it, and run the extraction command in order to extract it back into a board-2.json and the original bin file(s)
+
+Should the JSON look correct (has both entries if there are two) and there are all bin files present (with different names is ok) then you completed a "round trip".
+
+The files are ready for insertion into your dev environment and to be built into the image.

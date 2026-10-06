@@ -1,0 +1,33 @@
+Image contains unit addresses @, this will break signing
+FIT description: Flashing norplusnand 100 10000
+Created:         Thu Jun 26 01:25:03 2025
+ Image 0 (script)
+  Description:  flash.scr
+  Created:      Thu Jun 26 01:25:03 2025
+  Type:         Script
+  Compression:  uncompressed
+  Data Size:    1628 Bytes = 1.59 KiB = 0.00 MiB
+  Hash algo:    crc32
+  Hash value:   c1575197
+ Image 1 (ubi-2113e3f3cc2a94e31f40d2c220669cca1b7e2845)
+  Description:  openwrt-ipq806x-ipq40xx-ubi-root.img
+  Created:      Thu Jun 26 01:25:03 2025
+  Type:         Firmware
+  Compression:  uncompressed
+  Data Size:    25427968 Bytes = 24832.00 KiB = 24.25 MiB
+  Architecture: ARM
+  OS:           Unknown OS
+  Load Address: unavailable
+  Hash algo:    crc32
+  Hash value:   dcdd563f
+ Image 2 (overlay-57ffd459414f12df665c8d0abda4eb0c37019719)
+  Description:  openwrt-ipq806x-um-nand-overlay.img
+  Created:      Thu Jun 26 01:25:03 2025
+  Type:         Firmware
+  Compression:  uncompressed
+  Data Size:    262144 Bytes = 256.00 KiB = 0.25 MiB
+  Architecture: ARM
+  OS:           Unknown OS
+  Load Address: unavailable
+  Hash algo:    crc32
+  Hash value:   c598c654

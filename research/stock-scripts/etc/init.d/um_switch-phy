@@ -1,0 +1,51 @@
+#!/bin/sh /etc/rc.common
+. /lib/functions/umlib.sh
+
+START=99
+
+_start_with_phy_on(){
+	# Annie: apply Ricky's patch to power on PHY after system is ready
+	echo "Turn ON all of switch ports ..." > /dev/console
+
+	echo 0 > /sys/ssdk/dev_id
+	#ssdk_sh debug phy set 0x4 0x0 0x0140
+	ssdk_sh debug phy set 0x0 0x0 0x1040
+	ssdk_sh debug phy set 0x1 0x0 0x1040
+	ssdk_sh debug phy set 0x2 0x0 0x1040
+	ssdk_sh debug phy set 0x3 0x0 0x1040
+
+	sleep 1
+
+	echo 1 > /sys/ssdk/dev_id
+	#ssdk_sh debug reg set 0x4 0x80 4
+	ssdk_sh debug phy set 0x6 0xd 0x7
+	ssdk_sh debug phy set 0x6 0xe 0x3c
+	ssdk_sh debug phy set 0x6 0xd 0x4007
+	ssdk_sh debug phy set 0x6 0xe 0x0
+	ssdk_sh debug phy set 0x0 0x0 0x1000
+	ssdk_sh debug phy set 0x1 0x0 0x1000
+	ssdk_sh debug phy set 0x2 0x0 0x1000
+	ssdk_sh debug phy set 0x3 0x0 0x1000
+	ssdk_sh debug phy set 0x4 0x0 0x1000
+	ssdk_sh debug phy set 0x6 0x0 0x3100
+}
+
+_start() {
+	echo 1 > /sys/ssdk/dev_id
+	ssdk_sh debug phy set 0x6 0xd 0x7
+	ssdk_sh debug phy set 0x6 0xe 0x3c
+	ssdk_sh debug phy set 0x6 0xd 0x4007
+	ssdk_sh debug phy set 0x6 0xe 0x0
+}
+
+start() {
+	if [ -n "$CUSTFUNC_ETHER_PHY_OFF_AT_BOOTTIME" ]; then
+		_start_with_phy_on
+	else
+		_start
+	fi
+
+	# workaround ipsec start during boot
+	sleep 1
+	/etc/init.d/ipsec restart
+}

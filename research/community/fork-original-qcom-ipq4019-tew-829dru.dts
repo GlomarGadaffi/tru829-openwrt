@@ -1,0 +1,664 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+// Copyright (c) 2018, The Linux Foundation. All rights reserved.
+// Copyright (c) 2026, mooleshacat <mooleshacat@catspeed.cc>
+
+/*
+ *		What is working?
+ *			
+ *			- UART
+ *			- CPU
+ *			- RAM
+ *			- USB
+ *			- 8MB Flash (Macronix MX25L6433F SPI NOR 8MB // single stock bootloader, ART, etc.)
+ *			- 128MB nand (Micron MT29F1G08ABADA NAND 128MB // 2x kernel, 2x rootfs, 1x rootfs_data)
+ *			- wifi (QCA9984, QCA4019)
+ *			- switches (QCA8075, QCA8337)
+ *			- LEDs (will resolve last :P)
+ *
+ *		What is NOT working?
+ *			
+ *			- possible reset button
+ *			- proper install/sysupgrade integration
+ *
+ *	NOTICE: THIS DTS DESCRIBES THE OPTIMAL CONFIGURATION FOR MAXIMUM HARDWARE FREEDOM :3
+ *
+ */
+
+#include "qcom-ipq4019-ap.dk04.1.dtsi"
+
+/ {
+
+	model = "TRENDnet TEW-829DRU";
+	compatible = "trendnet,tew-829dru", "qcom,ipq4019-dk04.1-c1", "qcom,ipq4019";
+	
+	chosen {
+		bootargs = "console=ttyMSM0,115200n8 rootfstype=squashfs,jffs2 iommu.passthrough=1";
+	};
+	
+	aliases {
+		ethernet0 = &gmac;
+		ethernet1 = &gmac2;
+		mtd0 = &sbl1_part;
+		mtd1 = &mibib_part;
+		mtd2 = &qsee_part;
+		mtd3 = &cdt_part;
+		mtd4 = &ddrparams_part;
+		mtd5 = &appsblenv_part;
+		mtd6 = &appsbl_part;
+		mtd7 = &art_part;
+		mtd8 = &rootfs_part;
+	};
+	
+	gpio-keys {
+		compatible = "gpio-keys";
+		
+		reset {
+			label = "reset";
+			gpios = <&tlmm 18 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RESTART>;
+		};
+	};
+	
+	regulators {
+		compatible = "simple-bus";
+
+		usb_power: usb-power-enable {
+			compatible = "regulator-fixed";
+			regulator-name = "usb-power-enable";
+			gpio = <&tlmm 48 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+	};
+	
+	leds {
+	
+		compatible = "gpio-leds";
+
+		led_2g4: led-2g4 {
+			label = "tew829dru:blue:2g4";
+			gpios = <&tlmm 49 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "phy0tpt";
+			default-state = "off";
+		};
+
+		/* MISSING - claimed by qca8k, dont need it */
+		/*led_5g1: led-5g1 {
+			label = "tew829dru:blue:5g1";
+			gpios = <&tlmm ??? GPIO_ACTIVE_LOW>; //temporary - FILL IN GPIO WHEN FOUND!
+			default-state = "off";
+		};*/
+		
+		led_5g2: led-5g2 {
+			label = "tew829dru:blue:5g2";
+			gpios = <&tlmm 45 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "phy1tpt";
+			default-state = "off";
+		};
+
+		led_wps: led-wps {
+			label = "tew829dru:blue:wps";
+			gpios = <&tlmm 50 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		
+	}; /* end of leds */
+	
+}; /* end of root block */
+
+
+
+
+/* ============================================================
+ * EDMA — dual conduit netdev for side-by-side DSA.
+ * eth0 (netdev)  -> QCA8075 DSA tree 0
+ * eth1 (netdev2) -> QCA8337 DSA tree 1
+ * gmac2 child node is the of_node anchor for netdev2 so DSA
+ * can resolve 'ethernet = <&gmac2>' via of_find_net_device_by_node().
+ * ============================================================ */
+&gmac {
+	status = "okay";
+	phy-mode = "internal";
+	qcom,dual-switch;
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+		pause;
+	};
+
+	/* Anchor node for netdev2 (eth1).
+	 * No hardware here — driver sets netdev2->dev.of_node to this node. */
+	gmac2: gmac2 {
+		/* intentionally empty */
+	};
+};
+
+
+
+
+/* ============================================================
+ * TOP SWITCH: QCA8075 (internal ESS, PSGMII, at 0xc000000)
+ * compatible = "qca,ipq4019-qca8337n" — confirmed by extracted DTS.
+ * CPU port points to &gmac (eth0) — DSA tree 0.
+ * psgmii-ethphy = ethphy@12 (reg=0x0c) — confirmed by extracted DTS.
+ * ============================================================ */
+&switch {
+	status = "okay";
+	compatible = "qca,ipq4019-qca8337n";
+
+	dsa,member = <0 0>;
+
+	mdio-bus = <&mdio>;
+	psgmii-ethphy = <&ethphy12>;
+
+	/delete-node/ ports;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			label = "cpu";
+			ethernet = <&gmac>;
+			phy-mode = "internal";
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+				pause;
+				asym-pause;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			label = "wan2";
+			phy-handle = <&ethphy8>;
+			phy-mode = "psgmii";
+		};
+
+		port@2 {
+			reg = <2>;
+			label = "wan1";
+			phy-handle = <&ethphy9>;
+			phy-mode = "psgmii";
+		};
+
+		port@3 {
+			reg = <3>;
+			label = "lan7";
+			phy-handle = <&ethphy10>;
+			phy-mode = "psgmii";
+		};
+
+		port@4 {
+			reg = <4>;
+			label = "lan8";
+			phy-handle = <&ethphy11>;
+			phy-mode = "psgmii";
+		};
+
+		port@5 {
+			reg = <5>;
+			label = "lan2";
+			phy-handle = <&ethphy12>;
+			phy-mode = "psgmii";
+		};
+
+		/* port@6 REMOVED — qca8k num_ports=6 (indices 0-5 only).
+		 * eth0/eth1 split is handled entirely in ipqess driver
+		 * software via netdev2/gmac2 anchor. No DTS port needed. */
+		 
+	};
+}; /* end of &switch */
+
+
+
+
+/* ============================================================
+ * MDIO bus — QCA8075 PHY package + QCA8337 external switch.
+ * gpio52 = MDC, gpio53 = MDIO — confirmed by extracted DTS.
+ * NOTE: gpio53 is also used by NAND (qpic). NAND is disabled.
+ *       Do NOT enable both simultaneously.
+ * ============================================================ */
+&mdio {
+	status = "okay";
+	pinctrl-0 = <&mdio_pins>;
+	pinctrl-names = "default";
+
+	/delete-node/ ethernet-phy-package@0;
+
+	/* QCA8075: 5-port PSGMII PHY package.
+	 * MDIO base address 8 — confirmed by extracted DTS.
+	 * ethphy12 doubles as psgmii-ethphy (calibration PHY). */
+	ethernet-phy-package@8 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "qcom,qca8075-package";
+		reg = <8>;
+		qcom,tx-drive-strength-milliwatt = <300>;
+
+		ethphy8:  ethernet-phy@8  { reg = <8>;  };   /* WAN1 — switch port@1 */
+		ethphy9:  ethernet-phy@9  { reg = <9>;  };   /* WAN2 — switch port@2 */
+		ethphy10: ethernet-phy@10 { reg = <10>; };   /* LAN1 — switch port@3 */
+		ethphy11: ethernet-phy@11 { reg = <11>; };   /* LAN2 — switch port@4 */
+		ethphy12: ethernet-phy@12 { reg = <12>; };   /* LAN3 — switch port@5 / psgmii cal PHY */
+	};
+
+	/* ============================================================
+	 * BOTTOM SWITCH: QCA8337 (external, RGMII, at MDIO addr 0x10)
+	 * compatible = "qca,qca8337" — upstream qca8k.c match string.
+	 * CPU port: phy-mode=rgmii, ethernet=<&gmac2> -> eth1 (netdev2).
+	 * dsa,member = <1 0> — independent DSA tree 1.
+	 * Internal PHY addresses 0-4 confirmed by extracted DTS.
+	 * ============================================================ */
+	qca8337: switch@10 {
+		compatible = "qca,qca8337";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x10>;
+
+		dsa,member = <1 0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				label = "cpu";
+				ethernet = <&gmac2>;
+				phy-mode = "rgmii";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				label = "lan1";
+				phy-mode = "internal";
+				phy-handle = <&qca8337_phy0>;
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "lan4";
+				phy-mode = "internal";
+				phy-handle = <&qca8337_phy1>;
+			};
+
+			port@3 {
+				reg = <3>;
+				label = "lan3";
+				phy-mode = "internal";
+				phy-handle = <&qca8337_phy2>;
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "lan6";
+				phy-mode = "internal";
+				phy-handle = <&qca8337_phy3>;
+			};
+
+			port@5 {
+				reg = <5>;
+				label = "lan5";
+				phy-mode = "internal";
+				phy-handle = <&qca8337_phy4>;
+			};
+		};
+		
+		/* QCA8337 internal MDIO bus.
+		 * Local PHY addresses 0-4 confirmed by extracted DTS. */
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			qca8337_phy0: ethernet-phy@0 { reg = <0>; };   /* lan4 */
+			qca8337_phy1: ethernet-phy@1 { reg = <1>; };   /* lan5 */
+			qca8337_phy2: ethernet-phy@2 { reg = <2>; };   /* lan6 */
+			qca8337_phy3: ethernet-phy@3 { reg = <3>; };   /* lan7 */
+			qca8337_phy4: ethernet-phy@4 { reg = <4>; };   /* lan8 */
+		};
+	};
+}; /* end of &mdio */
+
+
+
+
+/* 8MB FLASH CHIP (Macronix MX25L6433F SPI NOR 8MB) */
+&blsp1_spi1 {
+
+	status = "okay";
+
+	pinctrl-0 = <&spi_0_pinmux>;
+	pinctrl-names = "default";
+
+	cs-gpios = <&tlmm 12 GPIO_ACTIVE_LOW>;
+
+	flash: flash@0 {
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		compatible = "mx25l6405d", "jedec,spi-nor";
+
+		reg = <0>;
+		spi-max-frequency = <24000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			sbl1_part: partition@0 {
+				label = "SBL1";
+				reg = <0x0 0x40000>;
+				read-only;
+			};
+
+			mibib_part: partition@40000 {
+				label = "MIBIB";
+				reg = <0x40000 0x20000>;
+				read-only;
+			};
+
+			qsee_part: partition@60000 {
+				label = "QSEE";
+				reg = <0x60000 0x60000>;
+				read-only;
+			};
+
+			cdt_part: partition@c0000 {
+				label = "CDT";
+				reg = <0xc0000 0x10000>;
+				read-only;
+			};
+
+			ddrparams_part: partition@d0000 {
+				label = "DDRPARAMS";
+				reg = <0xd0000 0x10000>;
+				read-only;
+			};
+
+			appsblenv_part: partition@e0000 {
+				label = "APPSBLENV";
+				reg = <0xe0000 0x10000>;
+			};
+
+			appsbl_part: partition@f0000 {
+				label = "APPSBL";
+				reg = <0xf0000 0x80000>;
+				read-only;
+			};
+
+			art_part: partition@170000 {
+				label = "ART";
+				reg = <0x170000 0x10000>;
+				read-only;
+			};
+		};
+	};
+};
+/* end of &blsp1_spi1 (Macronix MX25L6433F SPI NOR 8MB) */
+
+
+
+
+/* start of &qpic_bam (for Micron MT29F1G08ABADA NAND 128MB) */
+&qpic_bam {
+	status = "okay";
+};
+/* end of &qpic_bam (Micron MT29F1G08ABADA NAND 128MB) */
+
+/* start of &nand (Micron MT29F1G08ABADA NAND 128MB) */
+&nand {
+	status = "okay";
+
+	/* pinctrl removed — gpio53 owned by mdio permanently.
+	 * NAND uses remaining QPIC pins (gpio55-69 minus gpio61).
+	 * gpio53 shared at hardware level, mdio claims it exclusively. */
+	 /delete-property/ pinctrl-0;
+	 /delete-property/ pinctrl-names;
+
+	nand@0 {
+		reg = <0>;
+
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+		nand-bus-width = <8>;
+		
+		/* nand-is-boot-medium REMOVED — not in spi-extracted.dts,
+		* boot is on SPI NOR (SBL1), not NAND. Causes BBM read errors. */
+
+		/* NOTICE:	THIS DIVERGES FROM MFR SPI-EXTRACTED.DTS */
+		/*			rootfs_1 & overlay has been merged into rootfs. */
+		/*			sysupgrade manages kernel, rootfs, and rootfs_data */
+		/*			internally — no separate overlay partition needed. */
+		/*			Use firstboot to reset overlay, sysupgrade for clean install. */
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			rootfs_part: partition@0 {
+				label = "rootfs";
+				reg = <0x00000000 0x08000000>; /* 128MB (merged rootfs + overlay) */
+			};
+		};
+	};
+};
+/* end of &nand (Micron MT29F1G08ABADA NAND 128MB) */
+
+
+
+
+&blsp1_uart1 {
+	status = "okay";
+	pinctrl-0 = <&tew_uart0_pins>;
+	pinctrl-names = "default";
+};
+
+&blsp1_uart2 {
+	status = "okay";
+	pinctrl-0 = <&tew_uart1_pins>;
+	pinctrl-names = "default";
+};   
+
+
+
+
+&tlmm {
+
+	/delete-node/ nand_pins; /* nuke the parent DTSI's nand_pins */
+
+	/* Verbatim from spi-extracted.dts nand-state.
+	 * gpio53 included — required for QPIC bus data transfer.
+	 * gpio52 excluded — MDC only, permanently owned by mdio_pins.
+	 * pinctrl-0 removed from &nand node so NAND driver does not
+	 * claim gpio53 at probe time, avoiding conflict with mdio.
+	 * MDIO owns gpio53 exclusively via pinctrl, NAND uses it
+	 * at the hardware level without the kernel pinctrl layer
+	 * fighting over it. No bias — matches manufacturer style. */
+	nand_pins: nand-state {
+		pins = "gpio53", "gpio55", "gpio56", "gpio57", "gpio58",
+			   "gpio59", "gpio60", "gpio62", "gpio63",
+			   "gpio64", "gpio65", "gpio66", "gpio67",
+			   "gpio68", "gpio69";
+		function = "qpic";
+	};
+	
+	mdio_pins: mdio_pinmux {
+		pinmux_1 {
+			pins = "gpio53";
+			function = "mdio";
+		};
+		pinmux_2 {
+			pins = "gpio52";
+			function = "mdc";
+		};
+		pinconf {
+			pins = "gpio52", "gpio53";
+			bias-pull-up;
+		};
+	};
+
+	/* pinmux / gpios */
+	
+	/* Using Stock Router Pinout for UART0 (Console) */
+	tew_uart0_pins: uart0-state {
+		pins = "gpio16", "gpio17"; 
+		function = "blsp_uart0";
+		bias-disable;
+	};
+
+	/* Using Stock Router Pinout for UART1 (2 pins, not 4) */
+	tew_uart1_pins: uart1-state {
+		pins = "gpio8", "gpio9"; 
+		function = "blsp_uart1";
+		bias-disable;
+	};
+
+	uart1_pins: uart1_pinmux {
+		mux {
+			pins = "gpio8", "gpio9", "gpio10", "gpio11";
+			function = "blsp_uart1";
+			bias-disable;
+		};
+	};
+
+	spi_0_pinmux: spi_0_pinmux {
+		mux {
+			pins = "gpio12", "gpio13", "gpio14", "gpio15";
+			function = "blsp_spi0";
+			bias-disable;
+		};
+	};
+
+	/* needed for ath10k / PCIe WiFi */
+	i2c_0_pinmux: i2c_0_pinmux {
+		mux {
+			pins = "gpio20", "gpio21";
+			function = "blsp_i2c0";
+			bias-disable;
+		};
+	};
+
+	ts_0_pinmux: ts_0_pinmux {
+
+		mux_1 {
+			pins = "gpio34";
+			output-high;
+		};
+
+		mux_2 {
+			pins = "gpio35";
+			input-enable;
+			bias-pull-up;
+		};
+	};
+	/* end of pinmux/gpios */
+	
+};
+/* end of &tlmm */
+
+
+
+
+&usb3 {
+	status = "okay";
+	dr_mode = "host";
+	phys = <&usb3_hs_phy>, <&usb3_ss_phy>;
+	phy-names = "usb2-phy", "usb3-phy";
+	/* vbus-supply removed because GPIO 48 hog handles power enable */
+};
+
+&usb3_hs_phy {
+	status = "okay";
+};
+
+&usb3_ss_phy {
+	status = "okay";
+};
+
+&usb2 {
+	status = "okay";
+};
+
+&usb2_hs_phy {
+	status = "okay";
+};
+
+
+
+
+/* QCA4019 2GHZ */
+&wifi0 {
+	status = "okay";
+	qcom,ath10k-calibration-variant = "TEW-829DRU-2G";
+	nvmem-cells = <&caldata_art_1000>;
+	nvmem-cell-names = "pre-calibration";
+};
+
+/* QCA4019 5GHZ */
+&wifi1 {
+	status = "okay";
+	qcom,ath10k-calibration-variant = "TEW-829DRU-5G";
+	nvmem-cells = <&caldata_art_5000>;
+	nvmem-cell-names = "pre-calibration";
+};
+
+/* QCA9984 5GHZ */
+&pcie0 {
+	status = "okay";
+
+	pcie_bridge0: pcie@0 {
+		device_type = "pci";
+		reg = <0x0 0x0 0x0 0x0 0x0>;
+		bus-range = <0x01 0xff>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges;
+
+		wifi@0,0 {
+			status = "okay";
+			compatible = "qcom,ath10k";
+			reg = <0x00010000 0 0 0 0>;
+			nvmem-cells = <&caldata_art_9000>;
+			nvmem-cell-names = "pre-calibration";
+		};
+	};
+};
+
+
+
+
+/* ART data / caldata for wifi */
+&art_part {
+	compatible = "nvmem-cells";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	macaddr_art_0: macaddr@0 {
+		reg = <0x0 0x6>;
+	};
+
+	/* QCA4019 2.4GHz - AHB radio wifi0 */
+	caldata_art_1000: caldata@1000 {
+		reg = <0x1000 0x2f20>;
+	};
+
+	/* QCA4019 5GHz - AHB radio wifi1 */
+	caldata_art_5000: caldata@5000 {
+		reg = <0x5000 0x2f20>;
+	};
+
+	/* QCA9984 5GHz - PCIe radio */
+	caldata_art_9000: caldata@9000 {
+		reg = <0x9000 0x2f20>;
+	};
+};

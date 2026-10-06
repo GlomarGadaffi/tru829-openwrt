@@ -1,0 +1,183 @@
+Image contains unit addresses @, this will break signing
+FIT description: ARM OpenWrt FIT (Flattened Image Tree)
+Created:         Thu Jun 26 01:24:23 2025
+ Image 0 (kernel@1)
+  Description:  ARM OpenWrt Linux-3.14.43
+  Created:      Thu Jun 26 01:24:23 2025
+  Type:         Kernel Image
+  Compression:  gzip compressed
+  Data Size:    3361261 Bytes = 3282.48 KiB = 3.21 MiB
+  Architecture: ARM
+  OS:           Linux
+  Load Address: 0x80208000
+  Entry Point:  0x80208000
+  Hash algo:    crc32
+  Hash value:   455baf05
+  Hash algo:    sha1
+  Hash value:   815ee16957306915e27edd00aa3f66ef979b805b
+ Image 1 (fdt@ap.dk04.1-c1)
+  Description:  ARM OpenWrt qcom-ipq40xx-ap.dkxx device tree blob
+  Created:      Thu Jun 26 01:24:23 2025
+  Type:         Flat Device Tree
+  Compression:  uncompressed
+  Data Size:    38060 Bytes = 37.17 KiB = 0.04 MiB
+  Architecture: ARM
+  Hash algo:    crc32
+  Hash value:   92aac660
+  Hash algo:    sha1
+  Hash value:   f3aca0d325a6dd413985ace0f4769f3c49980876
+ Image 2 (fdt@ap.dk04.1-c2)
+  Description:  ARM OpenWrt qcom-ipq40xx-ap.dkxx device tree blob
+  Created:      Thu Jun 26 01:24:23 2025
+  Type:         Flat Device Tree
+  Compression:  uncompressed
+  Data Size:    42640 Bytes = 41.64 KiB = 0.04 MiB
+  Architecture: ARM
+  Hash algo:    crc32
+  Hash value:   ea4512d0
+  Hash algo:    sha1
+  Hash value:   256aad6ecb4f40c816db98cb688f77468a698c87
+ Image 3 (fdt@ap.dk04.1-c4)
+  Description:  ARM OpenWrt qcom-ipq40xx-ap.dkxx device tree blob
+  Created:      Thu Jun 26 01:24:23 2025
+  Type:         Flat Device Tree
+  Compression:  uncompressed
+  Data Size:    38060 Bytes = 37.17 KiB = 0.04 MiB
+  Architecture: ARM
+  Hash algo:    crc32
+  Hash value:   5f1ca42b
+  Hash algo:    sha1
+  Hash value:   b4d9c73ac990636ac29a7b9c083c2e252e97fd5f
+ Image 4 (fdt@ap.dk05.1-c1)
+  Description:  ARM OpenWrt qcom-ipq40xx-ap.dkxx device tree blob
+  Created:      Thu Jun 26 01:24:23 2025
+  Type:         Flat Device Tree
+  Compression:  uncompressed
+  Data Size:    34416 Bytes = 33.61 KiB = 0.03 MiB
+  Architecture: ARM
+  Hash algo:    crc32
+  Hash value:   3a8a1184
+  Hash algo:    sha1
+  Hash value:   dfb5fe7ea7b54ccfbcab964b9aa6eac3767605b3
+ Image 5 (fdt@ap.dk01.1-c2)
+  Description:  ARM OpenWrt qcom-ipq40xx-ap.dkxx device tree blob
+  Created:      Thu Jun 26 01:24:23 2025
+  Type:         Flat Device Tree
+  Compression:  uncompressed
+  Data Size:    34416 Bytes = 33.61 KiB = 0.03 MiB
+  Architecture: ARM
+  Hash algo:    crc32
+  Hash value:   f4fd0ab2
+  Hash algo:    sha1
+  Hash value:   09ed5064482dda6c103e8baf9aab37c9255d05ea
+ Image 6 (fdt@ap.dk06.1-c1)
+  Description:  ARM OpenWrt qcom-ipq40xx-ap.dkxx device tree blob
+  Created:      Thu Jun 26 01:24:23 2025
+  Type:         Flat Device Tree
+  Compression:  uncompressed
+  Data Size:    37758 Bytes = 36.87 KiB = 0.04 MiB
+  Architecture: ARM
+  Hash algo:    crc32
+  Hash value:   a7c98d3d
+  Hash algo:    sha1
+  Hash value:   179a6f5019f394e80d2710cef340be52c8671b59
+ Image 7 (fdt@ap.dk07.1-c1)
+  Description:  ARM OpenWrt qcom-ipq40xx-ap.dkxx device tree blob
+  Created:      Thu Jun 26 01:24:23 2025
+  Type:         Flat Device Tree
+  Compression:  uncompressed
+  Data Size:    37922 Bytes = 37.03 KiB = 0.04 MiB
+  Architecture: ARM
+  Hash algo:    crc32
+  Hash value:   b448c7b5
+  Hash algo:    sha1
+  Hash value:   c2130265a9512115b7a12df0207d3b0f268068f2
+ Image 8 (fdt@ap.dk04.1-c3)
+  Description:  ARM OpenWrt qcom-ipq40xx-ap.dkxx device tree blob
+  Created:      Thu Jun 26 01:24:23 2025
+  Type:         Flat Device Tree
+  Compression:  uncompressed
+  Data Size:    41686 Bytes = 40.71 KiB = 0.04 MiB
+  Architecture: ARM
+  Hash algo:    crc32
+  Hash value:   ebd2e0ca
+  Hash algo:    sha1
+  Hash value:   87c21f7067c232ac15a4bd3f5a5e41d2097846de
+ Image 9 (fdt@ap.dk01.1-c1)
+  Description:  ARM OpenWrt qcom-ipq40xx-ap.dkxx device tree blob
+  Created:      Thu Jun 26 01:24:23 2025
+  Type:         Flat Device Tree
+  Compression:  uncompressed
+  Data Size:    34270 Bytes = 33.47 KiB = 0.03 MiB
+  Architecture: ARM
+  Hash algo:    crc32
+  Hash value:   847da2df
+  Hash algo:    sha1
+  Hash value:   4263b806c5adccde6813dd7f55b3d2545608a832
+ Image 10 (fdt@db.dk01.1-c1)
+  Description:  ARM OpenWrt qcom-ipq40xx-ap.dkxx device tree blob
+  Created:      Thu Jun 26 01:24:23 2025
+  Type:         Flat Device Tree
+  Compression:  uncompressed
+  Data Size:    34569 Bytes = 33.76 KiB = 0.03 MiB
+  Architecture: ARM
+  Hash algo:    crc32
+  Hash value:   24bc3f59
+  Hash algo:    sha1
+  Hash value:   c6e00d504eb8f249698cd8c44b06b4685cde2629
+ Image 11 (fdt@db.dk02.1-c1)
+  Description:  ARM OpenWrt qcom-ipq40xx-ap.dkxx device tree blob
+  Created:      Thu Jun 26 01:24:23 2025
+  Type:         Flat Device Tree
+  Compression:  uncompressed
+  Data Size:    38157 Bytes = 37.26 KiB = 0.04 MiB
+  Architecture: ARM
+  Hash algo:    crc32
+  Hash value:   2bf3efb2
+  Hash algo:    sha1
+  Hash value:   9fa82e8c509acbb417d26239d7f584bab9cfb871
+ Default Configuration: 'config@1'
+ Configuration 0 (config@ap.dk04.1-c1)
+  Description:  OpenWrt
+  Kernel:       kernel@1
+  FDT:          fdt@ap.dk04.1-c1
+ Configuration 1 (config@ap.dk04.1-c2)
+  Description:  OpenWrt
+  Kernel:       kernel@1
+  FDT:          fdt@ap.dk04.1-c2
+ Configuration 2 (config@ap.dk04.1-c4)
+  Description:  OpenWrt
+  Kernel:       kernel@1
+  FDT:          fdt@ap.dk04.1-c4
+ Configuration 3 (config@ap.dk05.1-c1)
+  Description:  OpenWrt
+  Kernel:       kernel@1
+  FDT:          fdt@ap.dk05.1-c1
+ Configuration 4 (config@ap.dk01.1-c2)
+  Description:  OpenWrt
+  Kernel:       kernel@1
+  FDT:          fdt@ap.dk01.1-c2
+ Configuration 5 (config@ap.dk06.1-c1)
+  Description:  OpenWrt
+  Kernel:       kernel@1
+  FDT:          fdt@ap.dk06.1-c1
+ Configuration 6 (config@ap.dk07.1-c1)
+  Description:  OpenWrt
+  Kernel:       kernel@1
+  FDT:          fdt@ap.dk07.1-c1
+ Configuration 7 (config@ap.dk04.1-c3)
+  Description:  OpenWrt
+  Kernel:       kernel@1
+  FDT:          fdt@ap.dk04.1-c3
+ Configuration 8 (config@ap.dk01.1-c1)
+  Description:  OpenWrt
+  Kernel:       kernel@1
+  FDT:          fdt@ap.dk01.1-c1
+ Configuration 9 (config@db.dk01.1-c1)
+  Description:  OpenWrt
+  Kernel:       kernel@1
+  FDT:          fdt@db.dk01.1-c1
+ Configuration 10 (config@db.dk02.1-c1)
+  Description:  OpenWrt
+  Kernel:       kernel@1
+  FDT:          fdt@db.dk02.1-c1

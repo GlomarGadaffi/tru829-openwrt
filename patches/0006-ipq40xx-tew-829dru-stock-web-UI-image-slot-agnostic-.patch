@@ -1,0 +1,186 @@
+From daa3cbbdc65ebc6fd72445065ed7191d14d0f845 Mon Sep 17 00:00:00 2001
+From: smoke <smoke@local>
+Date: Tue, 6 Oct 2026 05:45:52 +0000
+Subject: [PATCH 6/6] ipq40xx: tew-829dru: stock web UI image, slot-agnostic
+ A/B like stock
+
+- stock-webui.bin: FIT with a single ubi-openwrt section (crc32 hash) +
+  TRENDnet 'UR_C' header (board id 053192, CRC-32/MPEG-2 of the body);
+  header tool reproduces the stock v1.0.3.12 image byte-for-byte
+- boot from whichever slot U-Boot picked: append root= only, rely on
+  U-Boot's ubi.mtd=<slot>
+- sysupgrade writes the inactive slot (ubiformat first, it may hold a
+  stock UBI) and flips boot_partition; rootfs_1 no longer read-only
+- stock's shared 'overlay' partition stays read-only and untouched
+---
+ .../base-files/lib/upgrade/platform.sh        | 28 +++++++++--
+ .../boot/dts/qcom/qcom-ipq4019-tew-829dru.dts | 15 +++---
+ target/linux/ipq40xx/image/generic.mk         | 11 +++++
+ target/linux/ipq40xx/image/tew829-header.py   | 47 +++++++++++++++++++
+ 4 files changed, 90 insertions(+), 11 deletions(-)
+ create mode 100755 target/linux/ipq40xx/image/tew829-header.py
+
+diff --git a/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh b/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
+index 979ca12..aad5468 100644
+--- a/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
++++ b/target/linux/ipq40xx/base-files/lib/upgrade/platform.sh
+@@ -237,11 +237,29 @@ platform_do_upgrade() {
+ 		nand_do_upgrade "$1"
+ 		;;
+ 	trendnet,tew-829dru)
+-		# Stock U-Boot boots "rootfs" when boot_partition=0 and
+-		# "rootfs_1" when 1. OpenWrt always installs to "rootfs";
+-		# "rootfs_1" is left untouched as a stock fallback.
+-		fw_setenv boot_partition 0 || exit 1
+-		CI_UBIPART="rootfs"
++		# A/B like stock: U-Boot boots "rootfs" (boot_partition=0) or
++		# "rootfs_1" (=1) and passes ubi.mtd=<slot>. Write the slot we
++		# are NOT running from, then point U-Boot at it.
++		local cur next mtdnum
++		cur="$(sed -n 's/.*ubi\.mtd=\([^ ]*\).*/\1/p' /proc/cmdline)"
++		[ -n "$cur" ] || {
++			[ "$(fw_printenv -n boot_partition 2>/dev/null)" = "1" ] && \
++				cur="rootfs_1" || cur="rootfs"
++		}
++		if [ "$cur" = "rootfs_1" ]; then
++			next="rootfs"
++			fw_setenv boot_partition 0 || exit 1
++		else
++			next="rootfs_1"
++			fw_setenv boot_partition 1 || exit 1
++		fi
++		# the target slot may still hold a stock UBI (kernel, ubi_rootfs)
++		# that nand_do_upgrade would not remove; start from a clean UBI
++		mtdnum="$(find_mtd_index "$next")"
++		[ -n "$mtdnum" ] || exit 1
++		ubidetach -m "$mtdnum" 2>/dev/null
++		ubiformat "/dev/mtd$mtdnum" -y || exit 1
++		CI_UBIPART="$next"
+ 		nand_do_upgrade "$1"
+ 		;;
+ 	zyxel,nbg6617)
+diff --git a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts
+index 239ede6..7db0994 100644
+--- a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts
++++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts
+@@ -33,9 +33,11 @@
+ 	compatible = "trendnet,tew-829dru", "qcom,ipq4019-dk04.1-c1", "qcom,ipq4019";
+ 	
+ 	chosen {
+-		/* Stock U-Boot (bootipq) passes its own ubi.mtd/root= args for
+-		 * the stock volume names; append ours so the last root= wins. */
+-		bootargs-append = " ubi.mtd=rootfs root=/dev/ubiblock0_1";
++		/* Stock U-Boot (bootipq) attaches the active slot itself
++		 * (ubi.mtd=rootfs or rootfs_1, per boot_partition) and passes a
++		 * root= for the stock volume names; override root= only, so the
++		 * image boots from whichever slot U-Boot picked. */
++		bootargs-append = " root=/dev/ubiblock0_1";
+ 	};
+ 	
+ 	aliases {
+@@ -465,8 +467,10 @@
+ 
+ 		/* Stock layout (U-Boot smeminfo). U-Boot boots "rootfs" when
+ 		 * boot_partition=0 and "rootfs_1" when boot_partition=1.
+-		 * OpenWrt lives in "rootfs" (kernel, rootfs, rootfs_data UBI
+-		 * volumes); "rootfs_1" keeps the stock firmware as a fallback. */
++		 * A/B like stock: each slot holds a complete UBI (kernel,
++		 * rootfs, rootfs_data); sysupgrade writes the inactive slot and
++		 * flips boot_partition. "overlay" is stock's shared overlay and
++		 * is left alone. */
+ 		partitions {
+ 			compatible = "fixed-partitions";
+ 			#address-cells = <1>;
+@@ -480,7 +484,6 @@
+ 			rootfs1_part: partition@3000000 {
+ 				label = "rootfs_1";
+ 				reg = <0x03000000 0x03000000>;
+-				read-only;
+ 			};
+ 
+ 			overlay_part: partition@6000000 {
+diff --git a/target/linux/ipq40xx/image/generic.mk b/target/linux/ipq40xx/image/generic.mk
+index 1b458f5..8629026 100644
+--- a/target/linux/ipq40xx/image/generic.mk
++++ b/target/linux/ipq40xx/image/generic.mk
+@@ -10,6 +10,13 @@ define Build/netgear-fit-padding
+ 	mv $@.new $@
+ endef
+ 
++define Build/tew829-webui
++	printf '/dts-v1/;\n/ {\n\tdescription = "OpenWrt TEW-829DRU";\n\t#address-cells = <1>;\n\timages {\n\t\tubi-openwrt {\n\t\t\tdescription = "openwrt-ubi";\n\t\t\tdata = /incbin/("%s");\n\t\t\ttype = "firmware";\n\t\t\tarch = "arm";\n\t\t\tcompression = "none";\n\t\t\thash-1 { algo = "crc32"; };\n\t\t};\n\t};\n};\n' "$@" > $@.its
++	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.fit
++	./tew829-header.py $@.fit $@
++	rm -f $@.its $@.fit
++endef
++
+ define Device/FitImage
+ 	KERNEL_SUFFIX := -uImage.itb
+ 	KERNEL = kernel-bin | gzip | fit gzip $$(KDIR)/image-$$(DEVICE_DTS).dtb
+@@ -1254,6 +1261,10 @@ define Device/trendnet_tew-829dru
+ 	# U-Boot machid 0x8010006 = AP-DK07.1-C1; bootipq selects the FIT
+ 	# config by board name (the stock FIT has no config@1).
+ 	DEVICE_DTS_CONFIG := config@ap.dk07.1-c1
++	# stock web UI upgrade: FIT with a "ubi*" section + TRENDnet header;
++	# stock ubiformats it onto the inactive slot and flips boot_partition
++	IMAGES += stock-webui.bin
++	IMAGE/stock-webui.bin := append-ubi | tew829-webui
+ 	KERNEL_INSTALL := 1
+ 	BLOCKSIZE := 128k
+ 	PAGESIZE := 2048
+diff --git a/target/linux/ipq40xx/image/tew829-header.py b/target/linux/ipq40xx/image/tew829-header.py
+new file mode 100755
+index 0000000..d4bad43
+--- /dev/null
++++ b/target/linux/ipq40xx/image/tew829-header.py
+@@ -0,0 +1,47 @@
++#!/usr/bin/env python3
++# SPDX-License-Identifier: GPL-2.0-only
++"""Prepend the TRENDnet/U-Media upgrade header used by the TEW-829DRU stock web UI.
++
++Header (18 bytes, ASCII): "UR_C" + 6-char board id + 8 hex digits CRC.
++The CRC is CRC-32/MPEG-2 (poly 0x04c11db7, init 0xffffffff, no reflection,
++no final xor) over everything after the header. The stock um_handle_header
++checks the board id against `um_art r bid` and accepts "ffffff" as a wildcard.
++"""
++import sys
++
++MAGIC = b"UR_C"
++BOARD_ID = b"053192"  # from TEW-829DRU_v1.0.3.12.bin
++
++
++def _table():
++    t = []
++    for i in range(256):
++        c = i << 24
++        for _ in range(8):
++            c = ((c << 1) ^ 0x04C11DB7) if c & 0x80000000 else (c << 1)
++            c &= 0xFFFFFFFF
++        t.append(c)
++    return t
++
++
++def crc32_mpeg2(data):
++    t = _table()
++    c = 0xFFFFFFFF
++    for b in data:
++        c = ((c << 8) & 0xFFFFFFFF) ^ t[((c >> 24) ^ b) & 0xFF]
++    return c
++
++
++def main():
++    if len(sys.argv) != 3:
++        sys.exit("usage: tew829-header.py <in> <out>")
++    with open(sys.argv[1], "rb") as f:
++        body = f.read()
++    hdr = MAGIC + BOARD_ID + b"%08x" % crc32_mpeg2(body)
++    assert len(hdr) == 18
++    with open(sys.argv[2], "wb") as f:
++        f.write(hdr + body)
++
++
++if __name__ == "__main__":
++    main()
+-- 
+2.43.0
+

@@ -1,0 +1,209 @@
+From 3422dd0f116d017a02632e206d0c05774f3c2c68 Mon Sep 17 00:00:00 2001
+From: smoke <smoke@local>
+Date: Tue, 6 Oct 2026 05:12:14 +0000
+Subject: [PATCH 3/6] ipq40xx: tew-829dru: DTS fixes from stock AP-DK07.1-C1
+ tree
+
+- restore stock NAND layout rootfs/rootfs_1/overlay (rootfs_1, overlay read-only)
+- bootargs-append root=/dev/ubiblock0_1 for stock bootipq
+- reset button on GPIO34, polled (GPIO18 is the DK04.1 button)
+- psgmii-ethphy -> PHY 0x0d (package base 8 + 5), not the lan2 port PHY
+- MACs from ART 0x0/0x6/0xc (stock setmac layout); APPSBLENV has no ethaddr
+- don't bridge wan1+wan2
+---
+ .../ipq40xx/base-files/etc/board.d/02_network | 23 +++----
+ .../boot/dts/qcom/qcom-ipq4019-tew-829dru.dts | 67 ++++++++++++++-----
+ 2 files changed, 62 insertions(+), 28 deletions(-)
+
+diff --git a/target/linux/ipq40xx/base-files/etc/board.d/02_network b/target/linux/ipq40xx/base-files/etc/board.d/02_network
+index 606cea1..ab8dee5 100644
+--- a/target/linux/ipq40xx/base-files/etc/board.d/02_network
++++ b/target/linux/ipq40xx/base-files/etc/board.d/02_network
+@@ -134,9 +134,11 @@ ipq40xx_setup_interfaces()
+ 	skspruce,wia3300-20)
+ 		ucidef_set_interfaces_lan_wan "ETH2" "ETH1"
+ 		;;
+-        trendnet,tew-829dru)
+-                ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4 lan5 lan6 lan7 lan8" "wan1 wan2"
+-                ;;
++	trendnet,tew-829dru)
++		# wan2 is left unassigned for multi-WAN setups (mwan3 etc.);
++		# bridging both WAN ports would join two upstream networks.
++		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4 lan5 lan6 lan7 lan8" "wan1"
++		;;
+ 	zte,mf286d)
+ 		ucidef_set_interfaces_lan_wan "lan2 lan3 lan4" "wan"
+ 		;;
+@@ -242,15 +244,12 @@ ipq40xx_setup_macs()
+ 	pakedge,wr-1)
+ 		wan_mac=$(macaddr_add $(get_mac_label) 1)
+ 		;;
+-        trendnet,tew-829dru)
+-                local lan_mac wan1_mac wan2_mac
+-                lan_mac=$(mtd_get_mac_ascii APPSBLENV ethaddr)
+-                wan1_mac=$(mtd_get_mac_ascii APPSBLENV eth1addr)
+-                wan2_mac=$(mtd_get_mac_ascii APPSBLENV eth2addr)
+-                ucidef_set_interface_macaddr "lan" "$lan_mac"
+-                ucidef_set_interface_macaddr "wan1" "$wan1_mac"
+-                ucidef_set_interface_macaddr "wan2" "$wan2_mac"
+-                ;;
++	trendnet,tew-829dru)
++		# Stock QSDK U-Boot fills gmac0..2 from ART 0x0/0x6/0xc:
++		# gmac0 = wan1 (switch port 2), gmac1 = lan, gmac2 = wan2 (port 1)
++		wan_mac=$(mtd_get_mac_binary ART 0x0)
++		lan_mac=$(mtd_get_mac_binary ART 0x6)
++		;;
+ 	esac
+ 
+ 	[ -n "$lan_mac" ] && ucidef_set_interface_macaddr "lan" $lan_mac
+diff --git a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts
+index 48f7412..472d9ff 100644
+--- a/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts
++++ b/target/linux/ipq40xx/files-6.12/arch/arm/boot/dts/qcom/qcom-ipq4019-tew-829dru.dts
+@@ -32,7 +32,9 @@
+ 	compatible = "trendnet,tew-829dru", "qcom,ipq4019-dk04.1-c1", "qcom,ipq4019";
+ 	
+ 	chosen {
+-		bootargs = "console=ttyMSM0,115200n8 rootfstype=squashfs,jffs2 iommu.passthrough=1";
++		/* Stock U-Boot (bootipq) passes its own ubi.mtd/root= args for
++		 * the stock volume names; append ours so the last root= wins. */
++		bootargs-append = " ubi.mtd=rootfs root=/dev/ubiblock0_1";
+ 	};
+ 	
+ 	aliases {
+@@ -47,14 +49,19 @@
+ 		mtd6 = &appsbl_part;
+ 		mtd7 = &art_part;
+ 		mtd8 = &rootfs_part;
++		mtd9 = &rootfs1_part;
++		mtd10 = &overlay_part;
++		label-mac-device = &gmac;
+ 	};
+-	
+-	gpio-keys {
+-		compatible = "gpio-keys";
+-		
++
++	keys {
++		compatible = "gpio-keys-polled";
++		poll-interval = <60>;
++
++		/* stock AP-DK07.1-C1 DTB: gpio-keys-polled, tlmm 34, active low */
+ 		reset {
+ 			label = "reset";
+-			gpios = <&tlmm 18 GPIO_ACTIVE_LOW>;
++			gpios = <&tlmm 34 GPIO_ACTIVE_LOW>;
+ 			linux,code = <KEY_RESTART>;
+ 		};
+ 	};
+@@ -119,6 +126,8 @@
+  * ============================================================ */
+ &gmac {
+ 	status = "okay";
++	nvmem-cells = <&macaddr_art_0>;
++	nvmem-cell-names = "mac-address";
+ 	phy-mode = "internal";
+ 	qcom,dual-switch;
+ 	fixed-link {
+@@ -141,7 +150,7 @@
+  * TOP SWITCH: QCA8075 (internal ESS, PSGMII, at 0xc000000)
+  * compatible = "qca,ipq4019-qca8337n" — confirmed by extracted DTS.
+  * CPU port points to &gmac (eth0) — DSA tree 0.
+- * psgmii-ethphy = ethphy@12 (reg=0x0c) — confirmed by extracted DTS.
++ * psgmii-ethphy = PSGMII PHY at MDIO 0x0d (package base 8 + 5).
+  * ============================================================ */
+ &switch {
+ 	status = "okay";
+@@ -150,7 +159,7 @@
+ 	dsa,member = <0 0>;
+ 
+ 	mdio-bus = <&mdio>;
+-	psgmii-ethphy = <&ethphy12>;
++	psgmii-ethphy = <&psgmiiphy>;
+ 
+ 	/delete-node/ ports;
+ 
+@@ -231,7 +240,7 @@
+ 
+ 	/* QCA8075: 5-port PSGMII PHY package.
+ 	 * MDIO base address 8 — confirmed by extracted DTS.
+-	 * ethphy12 doubles as psgmii-ethphy (calibration PHY). */
++	 * PSGMII PHY sits at base + 5 (0x0d), see psgmiiphy below. */
+ 	ethernet-phy-package@8 {
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+@@ -243,7 +252,13 @@
+ 		ethphy9:  ethernet-phy@9  { reg = <9>;  };   /* WAN2 — switch port@2 */
+ 		ethphy10: ethernet-phy@10 { reg = <10>; };   /* LAN1 — switch port@3 */
+ 		ethphy11: ethernet-phy@11 { reg = <11>; };   /* LAN2 — switch port@4 */
+-		ethphy12: ethernet-phy@12 { reg = <12>; };   /* LAN3 — switch port@5 / psgmii cal PHY */
++		ethphy12: ethernet-phy@12 { reg = <12>; };   /* LAN3 — switch port@5 */
++	};
++
++	/* QCA8075 PSGMII PHY: package base 8 + 5. U-Boot "mii info" shows a
++	 * non-port PHY ID at 0x0d. Upstream boards use psgmii-phy@5 for base 0. */
++	psgmiiphy: psgmii-phy@d {
++		reg = <0xd>;
+ 	};
+ 
+ 	/* ============================================================
+@@ -435,11 +450,10 @@
+ 		/* nand-is-boot-medium REMOVED — not in spi-extracted.dts,
+ 		* boot is on SPI NOR (SBL1), not NAND. Causes BBM read errors. */
+ 
+-		/* NOTICE:	THIS DIVERGES FROM MFR SPI-EXTRACTED.DTS */
+-		/*			rootfs_1 & overlay has been merged into rootfs. */
+-		/*			sysupgrade manages kernel, rootfs, and rootfs_data */
+-		/*			internally — no separate overlay partition needed. */
+-		/*			Use firstboot to reset overlay, sysupgrade for clean install. */
++		/* Stock layout (U-Boot smeminfo). U-Boot boots "rootfs" when
++		 * boot_partition=0 and "rootfs_1" when boot_partition=1.
++		 * OpenWrt lives in "rootfs" (kernel, rootfs, rootfs_data UBI
++		 * volumes); "rootfs_1" keeps the stock firmware as a fallback. */
+ 		partitions {
+ 			compatible = "fixed-partitions";
+ 			#address-cells = <1>;
+@@ -447,7 +461,19 @@
+ 
+ 			rootfs_part: partition@0 {
+ 				label = "rootfs";
+-				reg = <0x00000000 0x08000000>; /* 128MB (merged rootfs + overlay) */
++				reg = <0x00000000 0x03000000>;
++			};
++
++			rootfs1_part: partition@3000000 {
++				label = "rootfs_1";
++				reg = <0x03000000 0x03000000>;
++				read-only;
++			};
++
++			overlay_part: partition@6000000 {
++				label = "overlay";
++				reg = <0x06000000 0x02000000>;
++				read-only;
+ 			};
+ 		};
+ 	};
+@@ -643,10 +669,19 @@
+ 	#address-cells = <1>;
+ 	#size-cells = <1>;
+ 
++	/* stock QSDK setmac layout: eth0 @0x0, eth1 @0x6, eth2 @0xc */
+ 	macaddr_art_0: macaddr@0 {
+ 		reg = <0x0 0x6>;
+ 	};
+ 
++	macaddr_art_6: macaddr@6 {
++		reg = <0x6 0x6>;
++	};
++
++	macaddr_art_c: macaddr@c {
++		reg = <0xc 0x6>;
++	};
++
+ 	/* QCA4019 2.4GHz - AHB radio wifi0 */
+ 	caldata_art_1000: caldata@1000 {
+ 		reg = <0x1000 0x2f20>;
+-- 
+2.43.0
+
